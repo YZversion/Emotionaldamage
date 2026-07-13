@@ -3,6 +3,11 @@
  * 生成可截图/导出的白底卡片
  */
 
+function escapeHtml(value) {
+  const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(value).replace(/[&<>"']/g, char => entities[char]);
+}
+
 /**
  * 渲染分享卡片到指定容器
  * @param {HTMLElement} container - 卡片容器
@@ -18,7 +23,7 @@ export function renderShareCard(container, result) {
           <span class="card-brand-text">Emotional Damage</span>
         </div>
         <div class="card-title">暧昧探测报告</div>
-        <div class="card-subtitle">${result.theirName}</div>
+        <div class="card-subtitle">${escapeHtml(result.theirName)}</div>
       </div>
 
       <!-- Score -->
@@ -86,8 +91,8 @@ export function renderShareCard(container, result) {
       <div class="card-section">
         <div class="card-section-title">💬 最有暧昧感的一句话</div>
         <div class="card-quote-bubble">
-          <div class="card-quote-text">"${result.topQuotes[0].text}"</div>
-          <div class="card-quote-meta">— ${result.topQuotes[0].sender} · ${result.topQuotes[0].date}</div>
+          <div class="card-quote-text">"${escapeHtml(result.topQuotes[0].text)}"</div>
+          <div class="card-quote-meta">— ${escapeHtml(result.topQuotes[0].sender)} · ${result.topQuotes[0].date}</div>
         </div>
       </div>
       ` : ''}

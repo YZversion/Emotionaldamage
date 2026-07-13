@@ -13,6 +13,11 @@ let currentResult = null;
 // ====== DOM refs ======
 const $ = id => document.getElementById(id);
 
+function escapeHtml(value) {
+  const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(value).replace(/[&<>"']/g, char => entities[char]);
+}
+
 const dom = {
   stepImport: $('step-import'),
   stepLoading: $('step-loading'),
@@ -173,8 +178,8 @@ function renderResult(result) {
   dom.quoteList.innerHTML = result.topQuotes.length > 0
     ? result.topQuotes.slice(0, 5).map(q => `
       <div class="quote-item ${q.isMe ? 'me' : 'them'}">
-        <div class="quote-item-text">"${q.text}"</div>
-        <div class="quote-item-meta">— ${q.sender} · ${q.date}</div>
+        <div class="quote-item-text">"${escapeHtml(q.text)}"</div>
+        <div class="quote-item-meta">— ${escapeHtml(q.sender)} · ${q.date}</div>
       </div>
     `).join('')
     : '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:12px;">暂未检测到明显的暧昧信号</div>';

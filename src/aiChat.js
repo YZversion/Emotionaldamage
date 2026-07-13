@@ -8,6 +8,15 @@ const API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 // 默认免费模型，用户可配置更好的模型
 const DEFAULT_MODEL = 'mistralai/mistral-7b-instruct';
 
+function setTextWithLineBreaks(element, value) {
+  const lines = String(value).split('\n');
+  element.replaceChildren();
+  lines.forEach((line, index) => {
+    if (index > 0) element.appendChild(document.createElement('br'));
+    element.appendChild(document.createTextNode(line));
+  });
+}
+
 // ====== 构建系统提示 ======
 function buildSystemPrompt(result) {
   const {
@@ -183,7 +192,6 @@ export function initAIChat(container, result) {
               id="aiChatApiKey"
               type="password"
               placeholder="OpenRouter API Key（留空使用免费模型）"
-              value="${apiKey}"
             />
             <button class="ai-chat-apikey-save" id="aiChatApiKeySave">保存</button>
           </div>
@@ -200,17 +208,20 @@ export function initAIChat(container, result) {
   const bodyEl = container.querySelector('#aiChatBody');
   const apiKeyInput = container.querySelector('#aiChatApiKey');
   const apiKeySaveBtn = container.querySelector('#aiChatApiKeySave');
+  apiKeyInput.value = apiKey;
 
   // 渲染已有消息
   function renderMessages() {
-    messagesEl.innerHTML = convHistory
-      .filter(m => m.role !== 'system')
-      .map(m => {
-        const isUser = m.role === 'user';
-        const cls = isUser ? 'user' : 'assistant';
-        return `<div class="ai-chat-msg ${cls}">${m.content.replace(/\n/g, '<br>')}</div>`;
-      })
-      .join('');
+    const fragment = document.createDocumentFragment();
+    convHistory
+      .filter(message => message.role !== 'system')
+      .forEach(message => {
+        const element = document.createElement('div');
+        element.className = `ai-chat-msg ${message.role === 'user' ? 'user' : 'assistant'}`;
+        setTextWithLineBreaks(element, message.content);
+        fragment.appendChild(element);
+      });
+    messagesEl.replaceChildren(fragment);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
@@ -254,7 +265,7 @@ export function initAIChat(container, result) {
             last.content += chunk;
           }
           // 更新 DOM
-          placeholderDiv.innerHTML = last.content.replace(/\n/g, '<br>');
+          setTextWithLineBreaks(placeholderDiv, last.content);
           messagesEl.scrollTop = messagesEl.scrollHeight;
         }
       );
@@ -268,7 +279,7 @@ export function initAIChat(container, result) {
       if (convHistory[convHistory.length - 1]?.content === '') {
         convHistory.pop();
       }
-      placeholderDiv.innerHTML = errorMsg;
+      placeholderDiv.textContent = errorMsg;
       placeholderDiv.className = 'ai-chat-msg assistant error';
       messagesEl.scrollTop = messagesEl.scrollHeight;
     } finally {
