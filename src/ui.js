@@ -27,7 +27,9 @@ const dom = {
   loadingStatus: $('loadingStatus'),
   btnBack: $('btnBack'),
   btnShowCard: $('btnShowCard'),
+  btnSendToThem: $('btnSendToThem'),
   btnBackFromCard: $('btnBackFromCard'),
+  btnCopyCard: $('btnCopyCard'),
   btnDownloadCard: $('btnDownloadCard'),
   shareCard: $('shareCard'),
   resultMeta: $('resultMeta'),
@@ -39,6 +41,7 @@ const dom = {
   quoteList: $('quoteList'),
   tagsContainer: $('tagsContainer'),
   timelineChart: $('timelineChart'),
+  toast: $('toast'),
 };
 
 // ====== 步骤切换 ======
@@ -286,6 +289,80 @@ async function downloadCard() {
   }
 }
 
+// ====== Toast 提示 ======
+let toastTimer = null;
+function showToast(msg, duration = 2500) {
+  const el = dom.toast;
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), duration);
+}
+
+// ====== 复制卡片到剪贴板（核心逻辑）======
+async function copyCardToClipboard(showSuccessMsg = true) {
+  const card = dom.shareCard;
+  if (!card) throw new Error('卡片元素不存在');
+
+  // 确保卡片渲染
+  if (currentResult) {
+    renderShareCard(dom.shareCard, currentResult);
+  }
+
+  try {
+    const canvas = await html2canvas(card, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      allowTaint: false,
+      useCORS: true,
+      logging: false,
+      width: 400,
+      windowWidth: 400,
+    });
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('生成图片失败');
+
+    await navigator.clipboard.write([
+      new ClipboardItem({ 'image/png': blob }),
+    ]);
+
+    if (showSuccessMsg) {
+      showToast('✅ 卡片已复制到剪贴板');
+    }
+    return true;
+  } catch (err) {
+    // 降级方案：复制纯文本版本
+    try {
+      const r = currentResult;
+      if (!r) throw new Error('无结果数据');
+      const text = `💔 情感伤害鉴定报告\n━━━━━━━━━━━━━━\n👤 ${r.theirName || 'TA'} 对你的伤害指数\n🔥 暧昧指数：${r.flirtScore} 分（${r.flirtGrade} 级）\n💬 分析消息：${r.totalMessages} 条\n━━━━━━━━━━━━━━\n来自 "Emotional Damage" 鉴定器`;
+      await navigator.clipboard.writeText(text);
+      if (showSuccessMsg) showToast('✅ 文字版已复制到剪贴板');
+      return true;
+    } catch (fallbackErr) {
+      throw new Error('复制失败: ' + err.message);
+    }
+  }
+}
+
+// ====== 「发给他/她」按钮 ======
+async function handleSendToThem() {
+  const btn = dom.btnSendToThem;
+  try {
+    btn.textContent = '⏳ 生成中...';
+    btn.disabled = true;
+    await copyCardToClipboard(false);
+    showToast('💌 卡片已复制到剪贴板，快去发给 TA 吧！');
+  } catch (err) {
+    showToast('❌ ' + err.message);
+  } finally {
+    btn.textContent = '💌 发给他/她';
+    btn.disabled = false;
+  }
+}
+
 // ====== 初始化 ======
 export function initUI() {
   // 文件选择
@@ -329,5 +406,7 @@ export function initUI() {
     else showStep('import');
   });
   dom.btnShowCard.addEventListener('click', exportCard);
+  dom.btnSendToThem.addEventListener('click', handleSendToThem);
+  dom.btnCopyCard.addEventListener('click', () => copyCardToClipboard());
   dom.btnDownloadCard.addEventListener('click', downloadCard);
 }

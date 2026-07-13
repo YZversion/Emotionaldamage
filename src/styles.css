@@ -269,40 +269,60 @@ body {
 .result-nav {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
 }
 
-.nav-back, .nav-export {
-  background: none;
+/* === 导航按钮统一系统 === */
+.nav-back,
+.nav-cta,
+.nav-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 18px;
   border: none;
+  border-radius: 18px;
   font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  padding: 8px 14px;
-  border-radius: 20px;
-  transition: var(--transition);
   font-family: var(--font);
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
 }
 
+/* 次要操作 · 描边风格 */
 .nav-back {
-  color: var(--text-secondary);
   background: var(--surface);
-  border: 1px solid #eee;
+  color: var(--text-secondary);
+  border: 1px solid #e5e7eb;
 }
-
 .nav-back:hover {
-  border-color: #ddd;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
-.nav-export {
+/* 主要操作 · 渐变填充（粉色） */
+.nav-cta {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: white;
-  box-shadow: 0 4px 12px rgba(255,77,125,0.3);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 77, 125, 0.3);
+}
+.nav-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255, 77, 125, 0.4);
 }
 
+/* 导出操作 · 渐变填充（紫色） */
+.nav-export {
+  background: linear-gradient(135deg, var(--accent), #7c5cfc);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+}
 .nav-export:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(255,77,125,0.4);
+  box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
 }
 
 /* Header */
