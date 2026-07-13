@@ -1,0 +1,28 @@
+{
+  "name": "emotionaldamage",
+  "version": "1.0.0",
+  "description": "Emotional Damage · 暧昧探测 & 关系画像卡片生成",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YZversion/Emotionaldamage.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/YZversion/Emotionaldamage/issues"
+  },
+  "homepage": "https://github.com/YZversion/Emotionaldamage#readme",
+  "devDependencies": {
+    "vite": "^8.1.4"
+  },
+  "dependencies": {
+    "html2canvas": "^1.4.1"
+  }
+}

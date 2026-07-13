@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emotional Damage · 暧昧探测</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>💘</text></svg>" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ====== STEP 1: 导入区 ====== -->
+    <section id="step-import" class="step active">
+      <div class="import-container">
+        <div class="brand">
+          <div class="brand-icon">💔</div>
+          <h1 class="brand-title">Emotional Damage</h1>
+          <p class="brand-subtitle">暧昧探测器 · 把聊天记录变成可分享的关系卡片</p>
+        </div>
+
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-icon">📄</div>
+          <p class="upload-text">上传微信聊天记录 <strong>JSON</strong> 文件</p>
+          <p class="upload-hint">支持标准 JSON 格式，数据仅在浏览器本地处理，不会上传</p>
+          <input type="file" id="fileInput" accept=".json" hidden />
+          <button class="btn btn-primary" id="btnSelectFile">选择文件</button>
+          <button class="btn btn-secondary" id="btnDemo">🎲 先用 Demo 数据试试</button>
+        </div>
+
+        <div class="format-hint">
+          <details>
+            <summary>支持的 JSON 格式示例</summary>
+            <pre><code>// 格式一：消息数组
+[
+  {
+    "time": "2026-05-25 10:30:00",
+    "is_send": true,
+    "sender": "我",
+    "content": "在干嘛呢"
+  },
+  ...
+]
+
+// 格式二：带 meta 的对象
+{
+  "chat": "联系人姓名",
+  "messages": [
+    {
+      "timestamp": 1777610400,
+      "sender": "Alice",
+      "type": "text",
+      "content": "想你了"
+    }
+  ]
+}</code></pre>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== STEP 2: 分析中 ====== -->
+    <section id="step-loading" class="step">
+      <div class="loading-container">
+        <div class="loading-heart">💔</div>
+        <h2 class="loading-title">正在扫描聊天记录...</h2>
+        <div class="loading-bar-track">
+          <div class="loading-bar-fill" id="loadingBar"></div>
+        </div>
+        <p class="loading-status" id="loadingStatus">读取消息中...</p>
+      </div>
+    </section>
+
+    <!-- ====== STEP 3: 结果仪表盘 ====== -->
+    <section id="step-result" class="step">
+      <!-- 导航 -->
+      <nav class="result-nav">
+        <button class="nav-back" id="btnBack">← 重新导入</button>
+        <button class="nav-export" id="btnShowCard">📸 分享卡片</button>
+      </nav>
+
+      <!-- Header 摘要 -->
+      <header class="result-header">
+        <div class="result-meta" id="resultMeta"></div>
+        <div class="score-ring-wrapper">
+          <svg class="score-ring" viewBox="0 0 200 200" id="scoreRing">
+            <circle class="ring-bg" cx="100" cy="100" r="88" />
+            <circle class="ring-fg" cx="100" cy="100" r="88" id="scoreRingFg" />
+            <text class="ring-score" x="100" y="80" text-anchor="middle" id="ringScore">0</text>
+            <text class="ring-label" x="100" y="115" text-anchor="middle">暧昧指数</text>
+            <text class="ring-grade" x="100" y="140" text-anchor="middle" id="ringGrade">-</text>
+          </svg>
+        </div>
+      </header>
+
+      <!-- 信号分类 -->
+      <section class="result-section">
+        <h3 class="section-title">📡 暧昧信号分布</h3>
+        <div class="signal-grid" id="signalGrid"></div>
+      </section>
+
+      <!-- 双向量化 -->
+      <section class="result-section">
+        <h3 class="section-title">⚖️ 双向对比</h3>
+        <div class="bilateral-container" id="bilateralContainer"></div>
+      </section>
+
+      <!-- 高光语录 -->
+      <section class="result-section">
+        <h3 class="section-title">💬 Top 暧昧语录</h3>
+        <div class="quote-list" id="quoteList"></div>
+      </section>
+
+      <!-- 画像标签 -->
+      <section class="result-section">
+        <h3 class="section-title">🏷️ 关系画像</h3>
+        <div class="tags-container" id="tagsContainer"></div>
+      </section>
+
+      <!-- 时间线 -->
+      <section class="result-section">
+        <h3 class="section-title">📈 暧昧时间线</h3>
+        <div class="timeline-chart" id="timelineChart"></div>
+      </section>
+
+      <!-- AI 顾问 -->
+      <div class="ai-chat-container" id="aiChatContainer"></div>
+    </section>
+
+    <!-- ====== STEP 4: 分享卡片 ====== -->
+    <section id="step-card" class="step">
+      <nav class="result-nav">
+        <button class="nav-back" id="btnBackFromCard">← 返回分析</button>
+        <button class="nav-export" id="btnDownloadCard">💾 保存为图片</button>
+      </nav>
+
+      <div class="share-card-wrapper">
+        <div class="share-card" id="shareCard">
+          <!-- 由 JS 渲染 -->
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
