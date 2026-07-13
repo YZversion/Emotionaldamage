@@ -1,0 +1,33 @@
+{
+  "scriptCompleted": true,
+  "stats": {
+    "filesScanned": 15,
+    "filesWithImports": 2,
+    "totalEdges": 6
+  },
+  "importMap": {
+    ".understand-anything/.understandignore": [],
+    ".understand-anything/config.json": [],
+    "agent.md": [],
+    "architecture.md": [],
+    "index.html": [],
+    "package.json": [],
+    "README.md": [],
+    "src/aiChat.js": [],
+    "src/analyzer.js": [],
+    "src/cardRenderer.js": [],
+    "src/main.js": [
+      "src/styles.css",
+      "src/ui.js"
+    ],
+    "src/parser.js": [],
+    "src/styles.css": [],
+    "src/ui.js": [
+      "src/aiChat.js",
+      "src/analyzer.js",
+      "src/cardRenderer.js",
+      "src/parser.js"
+    ],
+    "vite.config.js": []
+  }
+}

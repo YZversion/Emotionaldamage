@@ -1,0 +1,79 @@
+[
+  {
+    "order": 1,
+    "title": "项目全景",
+    "description": "先从 README 建立整体认识：这是一个在浏览器本地处理微信聊天 JSON 的关系分析工具，核心产物包括暧昧评分、关系画像、分享卡片，以及可选的 AI 顾问。文档同时说明支持的数据格式与隐私边界，为后续理解完整运行链提供坐标。",
+    "nodeIds": [
+      "document:README.md"
+    ]
+  },
+  {
+    "order": 2,
+    "title": "页面外壳与启动",
+    "description": "在项目全景之上，先看浏览器如何真正启动应用：index.html 提供四阶段页面骨架，再以 ES Module 加载 main.js。main.js 引入全局样式并在 DOM 就绪后启动 UI，package.json 与 Vite 配置则定义开发、构建、预览方式和静态部署路径。",
+    "nodeIds": [
+      "file:index.html",
+      "file:src/main.js",
+      "file:src/styles.css",
+      "config:package.json",
+      "file:vite.config.js"
+    ],
+    "languageLesson": "ES Modules 让浏览器入口通过 import 显式串联样式与功能模块；DOMContentLoaded 则确保初始化代码只在页面骨架可访问后绑定交互。"
+  },
+  {
+    "order": 3,
+    "title": "交互流程中枢",
+    "description": "main.js 启动后，ui.js 接管单页应用的全部流程编排，是理解运行时数据流的关键枢纽。它维护页面步骤和当前分析状态，把文件导入、解析、分析、结果渲染、AI 对话与卡片导出连接成一条用户可操作的链路。",
+    "nodeIds": [
+      "file:src/ui.js"
+    ]
+  },
+  {
+    "order": 4,
+    "title": "输入解析与归一化",
+    "description": "沿着 UI 的数据入口继续，parser.js 接收数组或带 messages 字段的聊天 JSON，并把不同时间、发送者、方向与内容字段统一为分析器需要的消息形状。它还负责参与者识别、无效记录过滤和 Demo 数据生成，因此把外部格式差异隔离在分析核心之外。",
+    "nodeIds": [
+      "file:src/parser.js"
+    ],
+    "languageLesson": "这里体现了归一化（normalization）边界：先把多种输入映射成单一内部结构，后续算法就无需反复处理格式分支。"
+  },
+  {
+    "order": 5,
+    "title": "关系分析引擎",
+    "description": "标准化消息随后进入 analyzer.js，在浏览器内完成关键词与 emoji 信号检测、加权评分和多维聚合。它产出的统一分析对象同时包含等级、双方比例、开场比例、月度趋势、代表语录与画像标签，是结果页、分享卡片和 AI 顾问共同依赖的数据契约。",
+    "nodeIds": [
+      "file:src/analyzer.js"
+    ]
+  },
+  {
+    "order": 6,
+    "title": "结果展示与分享",
+    "description": "拿到统一分析对象后，ui.js 将评分、信号分布、双方对比、语录、标签与时间线渲染到结果页。cardRenderer.js 再把同一份数据组织成固定宽度的白底分享卡片，配合样式系统完成预览、下载、复制及文本降级等输出流程。",
+    "nodeIds": [
+      "file:src/ui.js",
+      "file:src/cardRenderer.js",
+      "file:src/styles.css"
+    ]
+  },
+  {
+    "order": 7,
+    "title": "可选 AI 顾问",
+    "description": "在本地报告与分享输出之外，aiChat.js 将分析对象压缩为顾问上下文，并通过 OpenRouter 的流式聊天接口提供连续问答。agent.md 补充说明 System Prompt、会话状态、API Key 持久化、错误反馈与隐私约束，帮助区分本地分析主链和需要外部服务的可选能力。",
+    "nodeIds": [
+      "file:src/aiChat.js",
+      "document:agent.md"
+    ],
+    "languageLesson": "流式 Fetch 会持续读取响应数据并增量更新界面；这种模式能更早显示模型输出，但需要同时管理分块解析、会话状态和中途错误。"
+  },
+  {
+    "order": 8,
+    "title": "架构契约回看",
+    "description": "走完整条运行链后，用 architecture.md 回看解析、分析、UI、卡片导出和 AI 顾问之间的职责边界。文档对 analyze() 结果结构与评分、双向对比、时间线聚合等关键决策的定义，把前面各模块串成可核对的端到端架构。",
+    "nodeIds": [
+      "document:architecture.md",
+      "file:src/parser.js",
+      "file:src/analyzer.js",
+      "file:src/ui.js"
+    ]
+  }
+]

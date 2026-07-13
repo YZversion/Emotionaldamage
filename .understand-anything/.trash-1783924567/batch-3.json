@@ -1,0 +1,70 @@
+{
+  "nodes": [
+    {
+      "id": "file:.understand-anything/.understandignore",
+      "type": "file",
+      "name": ".understandignore",
+      "filePath": ".understand-anything/.understandignore",
+      "summary": "为 Understand Anything 分析器提供与 .gitignore 类似的排除规则模板，涵盖环境文件、编辑器产物和多语言测试文件。当前规则均为注释示例，因此不会额外排除项目文件，实际仍依赖工具内置默认值。",
+      "tags": [
+        "analysis-config",
+        "ignore-rules",
+        "file-filtering"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:.understand-anything/config.json",
+      "type": "config",
+      "name": "config.json",
+      "filePath": ".understand-anything/config.json",
+      "summary": "配置 Understand Anything 的分析产物使用中文输出，仅设置 outputLanguage 为 zh。",
+      "tags": [
+        "configuration",
+        "output-language",
+        "knowledge-graph"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/styles.css",
+      "type": "file",
+      "name": "styles.css",
+      "filePath": "src/styles.css",
+      "summary": "集中定义浏览器端单页界面的完整视觉系统，覆盖导入、加载、分析结果、分享卡片与 AI 对话面板，并通过响应式规则适配窄屏设备。文件还包含主题 CSS custom properties、状态样式、图表布局和多组过渡动画。",
+      "tags": [
+        "styling",
+        "responsive-design",
+        "component-styles",
+        "animation",
+        "mobile-ui"
+      ],
+      "complexity": "complex",
+      "languageNotes": "使用 CSS custom properties 统一颜色、圆角、阴影和动效，并以 480px media query 调整分享卡片及 AI 对话面板布局。"
+    },
+    {
+      "id": "file:vite.config.js",
+      "type": "file",
+      "name": "vite.config.js",
+      "filePath": "vite.config.js",
+      "summary": "定义 Vite 的本地开发与静态构建参数：项目根目录保持当前目录、相对 base 便于静态部署、开发服务器自动打开 3000 端口，并将构建结果写入 dist。",
+      "tags": [
+        "configuration",
+        "build-system",
+        "dev-server",
+        "vite"
+      ],
+      "complexity": "simple",
+      "languageNotes": "采用 ES module 的 defineConfig 包装对象配置。"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:src/styles.css",
+      "target": "file:src/main.js",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    }
+  ]
+}

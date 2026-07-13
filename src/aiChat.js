@@ -1,12 +1,13 @@
 /**
  * AI 顾问模块
- * 基于聊天分析结果，提供智能问答（通过 OpenRouter API）
- * 数据不上传第三方，仅发送分析摘要和用户问题
+ * 调用 OpenRouter：会上传分析摘要与脱敏语录（非完整聊天记录）
+ * 需要 API Key；本地分析与卡片导出不依赖本模块
  */
 
 const API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-// 默认免费模型，用户可配置更好的模型
-const DEFAULT_MODEL = 'mistralai/mistral-7b-instruct';
+// 有 Key 时默认走免费路由；用户可在代码外自行换模型
+const FREE_MODEL = 'openrouter/free';
+const PAID_DEFAULT_MODEL = 'openai/gpt-4o-mini';
 
 function setTextWithLineBreaks(element, value) {
   const lines = String(value).split('\n');
@@ -17,15 +18,14 @@ function setTextWithLineBreaks(element, value) {
   });
 }
 
-// ====== 构建系统提示 ======
+/** 脱敏：不把真实昵称发给模型 */
 function buildSystemPrompt(result) {
   const {
-    myName, theirName, totalMessages, totalWords,
+    totalMessages, totalWords,
     dateRange, flirtScore, flirtGrade,
     signalBreakdown, bilateral, topQuotes, tags,
   } = result;
 
-  // 信号汇总
   const signalSummary = Object.entries(signalBreakdown).map(([cat, data]) => {
     const labels = {
       intimateName: '亲昵称呼',
@@ -34,24 +34,21 @@ function buildSystemPrompt(result) {
       flirtyAction: '暧昧动作',
       flirtyEmoji: '暧昧表情',
     };
-    return `${labels[cat] || cat}: 我 ${data.me} 次 / TA ${data.them} 次`;
+    return `${labels[cat] || cat}: 你 ${data.me} 次 / TA ${data.them} 次`;
   }).join('\n');
 
-  // Top 暧昧语录摘要
+  // 语录：保留文本供顾问引用，但隐去真实 sender 名
   const quoteSummary = topQuotes.slice(0, 5).map(q =>
-    `[${q.isMe ? myName : theirName}] ${q.text}`
+    `[${q.isMe ? '你' : 'TA'}] ${q.text}`
   ).join('\n');
 
-  // 画像标签
   const tagText = tags.map(t => t.text).join(' ');
 
   return `你是一位专业的情感分析顾问，性格温暖、有洞察力。你会根据用户导入的聊天分析结果为用户提供见解、回答问题和给出建议。
 
-以下是本次聊天分析的完整报告：
+以下是本次聊天分析的报告（昵称已脱敏为「你 / TA」）：
 
 ===== 基本信息 =====
-- 你的代号: ${myName}
-- 对方: ${theirName}
 - 消息总数: ${totalMessages} 条
 - 总字数: ${totalWords} 字
 - 时间跨度: ${dateRange.start} ~ ${dateRange.end}
@@ -67,7 +64,7 @@ function buildSystemPrompt(result) {
 ===== 各维度信号 =====
 ${signalSummary}
 
-===== Top 暧昧语录 =====
+===== Top 暧昧语录（摘要，非完整记录）=====
 ${quoteSummary}
 
 ===== 行为准则 =====
@@ -76,111 +73,105 @@ ${quoteSummary}
 3. 如果用户问建议，要给出可操作的具体建议
 4. 不要评价分析报告的准确性，基于报告数据说话
 5. 回答简洁但有深度，控制在 3-5 句话
-6. 使用中文回答`;
+6. 使用中文回答
+7. 不要索要或猜测用户真实姓名`;
 }
 
-// ====== 调用 API ======
-async function callLLM(messages, apiKey, onChunk) {
+async function callLLM(messages, apiKey, model, onChunk) {
   const headers = {
     'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
     'HTTP-Referer': window.location.origin,
     'X-Title': 'Emotional Damage',
   };
 
-  if (apiKey) {
-    headers['Authorization'] = `Bearer ${apiKey}`;
-  }
-
   const body = {
-    model: apiKey ? 'openai/gpt-4o-mini' : DEFAULT_MODEL,
+    model,
     messages: messages.map(m => ({ role: m.role, content: m.content })),
     stream: true,
   };
 
-  try {
-    const response = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
+  const response = await fetch(API_ENDPOINT, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      let errMsg;
+  if (!response.ok) {
+    const errText = await response.text();
+    let errMsg;
+    try {
+      const errJson = JSON.parse(errText);
+      errMsg = errJson.error?.message || errJson.message || errText;
+    } catch {
+      errMsg = errText;
+    }
+    throw new Error(`API 请求失败 (${response.status}): ${errMsg}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data: ')) continue;
+      const data = trimmed.slice(6);
+      if (data === '[DONE]') return;
+
       try {
-        const errJson = JSON.parse(errText);
-        errMsg = errJson.error?.message || errJson.message || errText;
+        const parsed = JSON.parse(data);
+        const content = parsed.choices?.[0]?.delta?.content || '';
+        if (content) onChunk(content);
       } catch {
-        errMsg = errText;
-      }
-      throw new Error(`API 请求失败 (${response.status}): ${errMsg}`);
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data: ')) continue;
-        const data = trimmed.slice(6);
-        if (data === '[DONE]') return;
-
-        try {
-          const parsed = JSON.parse(data);
-          const content = parsed.choices?.[0]?.delta?.content || '';
-          if (content) onChunk(content);
-        } catch {
-          // 跳过解析失败的行
-        }
+        // 跳过解析失败的行
       }
     }
-  } catch (err) {
-    throw err;
   }
 }
 
-// ====== 渲染聊天 UI ======
 export function initAIChat(container, result) {
-  // 构建系统提示
   const systemPrompt = buildSystemPrompt(result);
 
-  // 状态
   let convHistory = [
     { role: 'system', content: systemPrompt },
     {
       role: 'assistant',
-      content: `你好！我是你的 AI 情感顾问 💕\n\n我已经分析了你们之间的聊天记录，可以为你解答关于这段关系的任何问题。比如：\n\n- "我们之间算什么关系？"\n- "TA 对我有意思吗？"\n- "我该怎么推进关系？"\n- "这段聊天有什么隐藏信号？"\n\n有什么想聊的吗？`,
+      content: `你好！我是 AI 情感顾问。\n\n使用前请注意：提问会把「分析摘要 + 若干条脱敏语录」发送到 OpenRouter，不是纯本地。\n需要先填写 API Key 才能对话。\n\n可以问例如：\n- "我们之间算什么关系？"\n- "TA 对我有意思吗？"\n- "我该怎么推进关系？"`,
     },
   ];
   let apiKey = localStorage.getItem('aiChatApiKey') || '';
+  let usePaidModel = localStorage.getItem('aiChatUsePaid') === '1';
   let isStreaming = false;
+  let isCollapsed = true; // 默认折叠，避免误触出网
 
-  // ===== 渲染 =====
   container.innerHTML = `
     <div class="ai-chat">
       <div class="ai-chat-header" id="aiChatToggle">
         <span class="ai-chat-title">
           <span class="ai-chat-icon">🤖</span>
-          AI 情感顾问
+          AI 情感顾问（可选·需联网）
         </span>
-        <button class="ai-chat-toggle-btn" id="aiChatCollapseBtn">−</button>
+        <button class="ai-chat-toggle-btn" id="aiChatCollapseBtn">+</button>
       </div>
-      <div class="ai-chat-body" id="aiChatBody">
+      <div class="ai-chat-body" id="aiChatBody" style="display:none">
+        <div class="ai-chat-privacy">
+          ⚠️ 本功能会上传分析摘要与 Top 语录到 OpenRouter；本地评分与分享卡不依赖 AI。
+        </div>
         <div class="ai-chat-messages" id="aiChatMessages"></div>
         <div class="ai-chat-input-row">
           <textarea
             class="ai-chat-input"
             id="aiChatInput"
-            placeholder="输入你的问题..."
+            placeholder="输入你的问题（需先填写 API Key）..."
             rows="1"
           ></textarea>
           <button class="ai-chat-send" id="aiChatSend">发送</button>
@@ -191,11 +182,15 @@ export function initAIChat(container, result) {
               class="ai-chat-apikey"
               id="aiChatApiKey"
               type="password"
-              placeholder="OpenRouter API Key（留空使用免费模型）"
+              placeholder="OpenRouter API Key（必填）"
             />
             <button class="ai-chat-apikey-save" id="aiChatApiKeySave">保存</button>
           </div>
-          <div class="ai-chat-model-info">默认模型: ${apiKey ? 'GPT-4o-mini' : 'Mistral 7B (免费)'}</div>
+          <label class="ai-chat-model-toggle">
+            <input type="checkbox" id="aiChatUsePaid" ${usePaidModel ? 'checked' : ''} />
+            使用 GPT-4o-mini（否则用 openrouter/free）
+          </label>
+          <div class="ai-chat-model-info" id="aiChatModelInfo"></div>
         </div>
       </div>
     </div>
@@ -208,9 +203,21 @@ export function initAIChat(container, result) {
   const bodyEl = container.querySelector('#aiChatBody');
   const apiKeyInput = container.querySelector('#aiChatApiKey');
   const apiKeySaveBtn = container.querySelector('#aiChatApiKeySave');
+  const usePaidEl = container.querySelector('#aiChatUsePaid');
+  const modelInfo = container.querySelector('#aiChatModelInfo');
   apiKeyInput.value = apiKey;
 
-  // 渲染已有消息
+  function currentModel() {
+    return usePaidModel ? PAID_DEFAULT_MODEL : FREE_MODEL;
+  }
+
+  function refreshModelInfo() {
+    modelInfo.textContent = apiKey
+      ? `当前模型: ${currentModel()}（Key 已保存）`
+      : '请先保存 OpenRouter API Key；免费模型也需要 Key';
+  }
+  refreshModelInfo();
+
   function renderMessages() {
     const fragment = document.createDocumentFragment();
     convHistory
@@ -227,19 +234,25 @@ export function initAIChat(container, result) {
 
   renderMessages();
 
-  // 发送消息
   async function sendMessage() {
     const text = inputEl.value.trim();
     if (!text || isStreaming) return;
 
+    if (!apiKey) {
+      const tip = document.createElement('div');
+      tip.className = 'ai-chat-msg assistant error';
+      tip.textContent = '⚠️ 请先在下方填写并保存 OpenRouter API Key。免费额度也需要注册后创建 Key。';
+      messagesEl.appendChild(tip);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return;
+    }
+
     inputEl.value = '';
     inputEl.style.height = 'auto';
 
-    // 添加用户消息
     convHistory.push({ role: 'user', content: text });
     renderMessages();
 
-    // 添加占位助手消息
     convHistory.push({ role: 'assistant', content: '' });
     const placeholderDiv = document.createElement('div');
     placeholderDiv.className = 'ai-chat-msg assistant';
@@ -256,26 +269,23 @@ export function initAIChat(container, result) {
       const systemMsg = convHistory.find(m => m.role === 'system');
 
       await callLLM(
-        [systemMsg, ...apiMessages.slice(0, -1)], // exclude the empty assistant message
+        [systemMsg, ...apiMessages.slice(0, -1)],
         apiKey,
+        currentModel(),
         (chunk) => {
-          // 更新 convHistory
           const last = convHistory[convHistory.length - 1];
           if (last && last.role === 'assistant') {
             last.content += chunk;
           }
-          // 更新 DOM
           setTextWithLineBreaks(placeholderDiv, last.content);
           messagesEl.scrollTop = messagesEl.scrollHeight;
         }
       );
     } catch (err) {
-      // 出错时显示错误信息
       const errorMsg = err.message.includes('401') || err.message.includes('403')
-        ? '⚠️ API Key 无效，请在下方输入有效的 OpenRouter API Key，或留空使用免费模型。'
+        ? '⚠️ API Key 无效或无权限，请检查 OpenRouter Key。'
         : `⚠️ ${err.message}`;
 
-      // 移除空的助手消息
       if (convHistory[convHistory.length - 1]?.content === '') {
         convHistory.pop();
       }
@@ -297,31 +307,29 @@ export function initAIChat(container, result) {
     }
   });
 
-  // 自动调整输入框高度
   inputEl.addEventListener('input', () => {
     inputEl.style.height = 'auto';
     inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
   });
 
-  // 折叠/展开
-  let isCollapsed = false;
   toggleBtn.addEventListener('click', () => {
     isCollapsed = !isCollapsed;
     bodyEl.style.display = isCollapsed ? 'none' : '';
     toggleBtn.textContent = isCollapsed ? '+' : '−';
   });
 
-  // API Key 保存
   apiKeySaveBtn.addEventListener('click', () => {
     const val = apiKeyInput.value.trim();
     apiKey = val;
     localStorage.setItem('aiChatApiKey', val);
     apiKeySaveBtn.textContent = '✓ 已保存';
     setTimeout(() => { apiKeySaveBtn.textContent = '保存'; }, 2000);
-    // 更新 model info
-    const modelInfo = container.querySelector('.ai-chat-model-info');
-    if (modelInfo) {
-      modelInfo.textContent = `默认模型: ${apiKey ? 'GPT-4o-mini' : 'Mistral 7B (免费)'}`;
-    }
+    refreshModelInfo();
+  });
+
+  usePaidEl.addEventListener('change', () => {
+    usePaidModel = usePaidEl.checked;
+    localStorage.setItem('aiChatUsePaid', usePaidModel ? '1' : '0');
+    refreshModelInfo();
   });
 }

@@ -1,0 +1,416 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "77f8715b788fec38cb8b6d8e97843a2457b2ed54",
+  "generatedAt": "2026-07-13T06:35:58.540Z",
+  "files": {
+    ".understand-anything/.understandignore": {
+      "filePath": ".understand-anything/.understandignore",
+      "contentHash": "67ab8d87c5c447242492ee064dfe024387d2e65b9992c715d62f67e0a5863bf3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 53,
+      "hasStructuralAnalysis": false
+    },
+    ".understand-anything/config.json": {
+      "filePath": ".understand-anything/config.json",
+      "contentHash": "5d2ff006cff22c68edd4776249d562ea8c73915a61c6214eb85933865a9402e7",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 4,
+      "hasStructuralAnalysis": true
+    },
+    "agent.md": {
+      "filePath": "agent.md",
+      "contentHash": "6b5ab4059991beb455d688e652a98b50503a73c199376fd2bfd3c847a2320f44",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 110,
+      "hasStructuralAnalysis": true
+    },
+    "architecture.md": {
+      "filePath": "architecture.md",
+      "contentHash": "0ac79da9d25b7bb9e67d658abdfe48bee0ab3d4f2c4be9cb8cbf593795b6658d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 117,
+      "hasStructuralAnalysis": true
+    },
+    "index.html": {
+      "filePath": "index.html",
+      "contentHash": "7a9a5e39fb5293e83cb7b7573751b4543a41b4c38a7c291cd9ec101daa424d43",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 155,
+      "hasStructuralAnalysis": false
+    },
+    "package.json": {
+      "filePath": "package.json",
+      "contentHash": "3ec956839c6f7014981d24f56b0c550a86ab604b85e41fccd8f7ee92fd4f662f",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 29,
+      "hasStructuralAnalysis": true
+    },
+    "README.md": {
+      "filePath": "README.md",
+      "contentHash": "3b1dc813fc0ad75d7fda8b57a6de50f83f36b33887eba13b76e8b662a6cf2138",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 106,
+      "hasStructuralAnalysis": true
+    },
+    "src/aiChat.js": {
+      "filePath": "src/aiChat.js",
+      "contentHash": "25d29989d59966c469a6ba7fc77bf36b215f59a030aa5f36b1e1bc333e45c015",
+      "functions": [
+        {
+          "name": "buildSystemPrompt",
+          "params": [
+            "result"
+          ],
+          "exported": false,
+          "lineCount": 60
+        },
+        {
+          "name": "callLLM",
+          "params": [
+            "messages",
+            "apiKey",
+            "onChunk"
+          ],
+          "exported": false,
+          "lineCount": 67
+        },
+        {
+          "name": "initAIChat",
+          "params": [
+            "container",
+            "result"
+          ],
+          "exported": true,
+          "lineCount": 197
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "initAIChat"
+      ],
+      "totalLines": 340,
+      "hasStructuralAnalysis": true
+    },
+    "src/analyzer.js": {
+      "filePath": "src/analyzer.js",
+      "contentHash": "abf49195583fd370697a5d4477d403978d094b56fa77859aea4cf2f4d62008e7",
+      "functions": [
+        {
+          "name": "generateTags",
+          "params": [
+            "result",
+            "signalTotals"
+          ],
+          "exported": false,
+          "lineCount": 56
+        },
+        {
+          "name": "analyze",
+          "params": [
+            "messages",
+            "contactName"
+          ],
+          "exported": true,
+          "lineCount": 224
+        },
+        {
+          "name": "formatDate",
+          "params": [
+            "d"
+          ],
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "analyze"
+      ],
+      "totalLines": 363,
+      "hasStructuralAnalysis": true
+    },
+    "src/cardRenderer.js": {
+      "filePath": "src/cardRenderer.js",
+      "contentHash": "398505e378341fcba0c0a1ec1469003078b199faf4ac64febe56df1a5b5e5978",
+      "functions": [
+        {
+          "name": "renderShareCard",
+          "params": [
+            "container",
+            "result"
+          ],
+          "exported": true,
+          "lineCount": 102
+        },
+        {
+          "name": "renderCardBars",
+          "params": [
+            "result"
+          ],
+          "exported": false,
+          "lineCount": 24
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "renderShareCard"
+      ],
+      "totalLines": 138,
+      "hasStructuralAnalysis": true
+    },
+    "src/main.js": {
+      "filePath": "src/main.js",
+      "contentHash": "f8ffa9ec0ede3c85f585d6b21f6fda1901816ddfe9edc1e2f9a430f57515164c",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./styles.css",
+          "specifiers": []
+        },
+        {
+          "source": "./ui.js",
+          "specifiers": [
+            "initUI"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 11,
+      "hasStructuralAnalysis": true
+    },
+    "src/parser.js": {
+      "filePath": "src/parser.js",
+      "contentHash": "e94cab3c24363ac395992bc10ff928db5a609881670c9d868d6aa077420cba9a",
+      "functions": [
+        {
+          "name": "parseChatJson",
+          "params": [
+            "rawJson"
+          ],
+          "exported": true,
+          "lineCount": 37
+        },
+        {
+          "name": "normalizeMessage",
+          "params": [
+            "msg"
+          ],
+          "exported": false,
+          "lineCount": 44
+        },
+        {
+          "name": "recognizeParticipants",
+          "params": [
+            "messages"
+          ],
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "generateDemoData",
+          "params": [],
+          "exported": true,
+          "lineCount": 59
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "parseChatJson",
+        "generateDemoData"
+      ],
+      "totalLines": 197,
+      "hasStructuralAnalysis": true
+    },
+    "src/styles.css": {
+      "filePath": "src/styles.css",
+      "contentHash": "3189727042fc4c6db80477e9361aef24c84928b969d10b8dc6a67deeeb90dcdc",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1255,
+      "hasStructuralAnalysis": false
+    },
+    "src/ui.js": {
+      "filePath": "src/ui.js",
+      "contentHash": "56e0e957bef253dc03fb1315c8c13d9637e7b92e5e1064f0366e58c97f68bc3a",
+      "functions": [
+        {
+          "name": "$",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "showStep",
+          "params": [
+            "name"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "animateLoading",
+          "params": [
+            "callback"
+          ],
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "renderResult",
+          "params": [
+            "result"
+          ],
+          "exported": false,
+          "lineCount": 110
+        },
+        {
+          "name": "renderTimeline",
+          "params": [
+            "timeline"
+          ],
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "handleData",
+          "params": [
+            "rawJson",
+            "fileName"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "handleFile",
+          "params": [
+            "file"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "exportCard",
+          "params": [],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "downloadCard",
+          "params": [],
+          "exported": false,
+          "lineCount": 29
+        },
+        {
+          "name": "showToast",
+          "params": [
+            "msg"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "copyCardToClipboard",
+          "params": [],
+          "exported": false,
+          "lineCount": 45
+        },
+        {
+          "name": "handleSendToThem",
+          "params": [],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "initUI",
+          "params": [],
+          "exported": true,
+          "lineCount": 46
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./analyzer.js",
+          "specifiers": [
+            "analyze"
+          ]
+        },
+        {
+          "source": "./parser.js",
+          "specifiers": [
+            "parseChatJson",
+            "generateDemoData"
+          ]
+        },
+        {
+          "source": "./cardRenderer.js",
+          "specifiers": [
+            "renderShareCard"
+          ]
+        },
+        {
+          "source": "./aiChat.js",
+          "specifiers": [
+            "initAIChat"
+          ]
+        },
+        {
+          "source": "html2canvas",
+          "specifiers": [
+            "html2canvas"
+          ]
+        }
+      ],
+      "exports": [
+        "initUI"
+      ],
+      "totalLines": 413,
+      "hasStructuralAnalysis": true
+    },
+    "vite.config.js": {
+      "filePath": "vite.config.js",
+      "contentHash": "99bc0c8f7cd4823599bc48fd6761cc039602c1b12fdbc4f030859fc7206a4ff1",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vite",
+          "specifiers": [
+            "defineConfig"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 14,
+      "hasStructuralAnalysis": true
+    }
+  }
+}

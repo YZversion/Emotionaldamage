@@ -1,0 +1,279 @@
+{
+  "scriptCompleted": true,
+  "commonPathPrefix": "",
+  "directoryGroups": {
+    ".understand-anything": [
+      "config:.understand-anything/config.json",
+      "file:.understand-anything/.understandignore"
+    ],
+    "root": [
+      "config:package.json",
+      "document:README.md",
+      "document:agent.md",
+      "document:architecture.md",
+      "file:index.html",
+      "file:vite.config.js"
+    ],
+    "src": [
+      "file:src/aiChat.js",
+      "file:src/analyzer.js",
+      "file:src/cardRenderer.js",
+      "file:src/main.js",
+      "file:src/parser.js",
+      "file:src/styles.css",
+      "file:src/ui.js"
+    ]
+  },
+  "nodeTypeGroups": {
+    "config": [
+      "config:.understand-anything/config.json",
+      "config:package.json"
+    ],
+    "document": [
+      "document:README.md",
+      "document:agent.md",
+      "document:architecture.md"
+    ],
+    "file": [
+      "file:.understand-anything/.understandignore",
+      "file:index.html",
+      "file:src/aiChat.js",
+      "file:src/analyzer.js",
+      "file:src/cardRenderer.js",
+      "file:src/main.js",
+      "file:src/parser.js",
+      "file:src/styles.css",
+      "file:src/ui.js",
+      "file:vite.config.js"
+    ]
+  },
+  "importAdjacency": {
+    "file:src/aiChat.js": [],
+    "file:src/analyzer.js": [],
+    "file:src/cardRenderer.js": [],
+    "file:src/main.js": [
+      "file:src/styles.css",
+      "file:src/ui.js"
+    ],
+    "file:src/parser.js": [],
+    "file:src/ui.js": [
+      "file:src/aiChat.js",
+      "file:src/analyzer.js",
+      "file:src/cardRenderer.js",
+      "file:src/parser.js"
+    ],
+    "document:README.md": [],
+    "document:agent.md": [],
+    "document:architecture.md": [],
+    "file:index.html": [],
+    "config:package.json": [],
+    "file:.understand-anything/.understandignore": [],
+    "config:.understand-anything/config.json": [],
+    "file:src/styles.css": [],
+    "file:vite.config.js": []
+  },
+  "importedBy": {
+    "file:src/aiChat.js": [
+      "file:src/ui.js"
+    ],
+    "file:src/analyzer.js": [
+      "file:src/ui.js"
+    ],
+    "file:src/cardRenderer.js": [
+      "file:src/ui.js"
+    ],
+    "file:src/main.js": [],
+    "file:src/parser.js": [
+      "file:src/ui.js"
+    ],
+    "file:src/ui.js": [
+      "file:src/main.js"
+    ],
+    "document:README.md": [],
+    "document:agent.md": [],
+    "document:architecture.md": [],
+    "file:index.html": [],
+    "config:package.json": [],
+    "file:.understand-anything/.understandignore": [],
+    "config:.understand-anything/config.json": [],
+    "file:src/styles.css": [
+      "file:src/main.js"
+    ],
+    "file:vite.config.js": []
+  },
+  "groupImportsFrom": {
+    ".understand-anything": [],
+    "root": [],
+    "src": []
+  },
+  "groupImportedBy": {
+    ".understand-anything": [],
+    "root": [],
+    "src": []
+  },
+  "crossCategoryEdges": [
+    {
+      "fromType": "config",
+      "toType": "file",
+      "edgeType": "configures",
+      "count": 1
+    },
+    {
+      "fromType": "document",
+      "toType": "config",
+      "edgeType": "documents",
+      "count": 1
+    },
+    {
+      "fromType": "document",
+      "toType": "file",
+      "edgeType": "documents",
+      "count": 3
+    },
+    {
+      "fromType": "file",
+      "toType": "file",
+      "edgeType": "imports",
+      "count": 6
+    },
+    {
+      "fromType": "file",
+      "toType": "file",
+      "edgeType": "related",
+      "count": 1
+    }
+  ],
+  "nonCodeConnections": [
+    {
+      "source": "document:README.md",
+      "target": "file:index.html",
+      "edgeType": "documents"
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:package.json",
+      "edgeType": "documents"
+    },
+    {
+      "source": "document:agent.md",
+      "target": "file:index.html",
+      "edgeType": "documents"
+    },
+    {
+      "source": "document:architecture.md",
+      "target": "file:index.html",
+      "edgeType": "documents"
+    },
+    {
+      "source": "config:package.json",
+      "target": "file:index.html",
+      "edgeType": "configures"
+    }
+  ],
+  "interGroupImports": [
+    {
+      "from": "src",
+      "to": "src",
+      "count": 6
+    }
+  ],
+  "intraGroupDensity": {
+    ".understand-anything": {
+      "internalEdges": 0,
+      "totalEdges": 0,
+      "density": 0
+    },
+    "root": {
+      "internalEdges": 0,
+      "totalEdges": 0,
+      "density": 0
+    },
+    "src": {
+      "internalEdges": 6,
+      "totalEdges": 6,
+      "density": 1
+    }
+  },
+  "patternMatches": {
+    ".understand-anything": null,
+    "root": null,
+    "src": null
+  },
+  "filePatternMatches": {
+    "document:README.md": "documentation",
+    "document:agent.md": "documentation",
+    "document:architecture.md": "documentation",
+    "config:package.json": "config"
+  },
+  "deploymentTopology": {
+    "hasDockerfile": false,
+    "hasCompose": false,
+    "hasK8s": false,
+    "hasTerraform": false,
+    "hasCI": false,
+    "infraFiles": []
+  },
+  "dataPipeline": {
+    "schemaFiles": [],
+    "migrationFiles": [],
+    "dataModelFiles": [],
+    "apiHandlerFiles": []
+  },
+  "docCoverage": {
+    "groupsWithDocs": 1,
+    "totalGroups": 3,
+    "coverageRatio": 0.3333,
+    "undocumentedGroups": [
+      ".understand-anything",
+      "src"
+    ]
+  },
+  "dependencyDirection": [],
+  "fileStats": {
+    "totalFileNodes": 15,
+    "filesPerGroup": {
+      ".understand-anything": 2,
+      "root": 6,
+      "src": 7
+    },
+    "nodeTypeCounts": {
+      "config": 2,
+      "document": 3,
+      "file": 10
+    }
+  },
+  "fileFanIn": {
+    "file:src/aiChat.js": 1,
+    "file:src/analyzer.js": 1,
+    "file:src/cardRenderer.js": 1,
+    "file:src/parser.js": 1,
+    "file:src/styles.css": 1,
+    "file:src/ui.js": 1,
+    "config:.understand-anything/config.json": 0,
+    "config:package.json": 0,
+    "document:agent.md": 0,
+    "document:architecture.md": 0,
+    "document:README.md": 0,
+    "file:.understand-anything/.understandignore": 0,
+    "file:index.html": 0,
+    "file:src/main.js": 0,
+    "file:vite.config.js": 0
+  },
+  "fileFanOut": {
+    "file:src/ui.js": 4,
+    "file:src/main.js": 2,
+    "config:.understand-anything/config.json": 0,
+    "config:package.json": 0,
+    "document:agent.md": 0,
+    "document:architecture.md": 0,
+    "document:README.md": 0,
+    "file:.understand-anything/.understandignore": 0,
+    "file:index.html": 0,
+    "file:src/aiChat.js": 0,
+    "file:src/analyzer.js": 0,
+    "file:src/cardRenderer.js": 0,
+    "file:src/parser.js": 0,
+    "file:src/styles.css": 0,
+    "file:vite.config.js": 0
+  }
+}

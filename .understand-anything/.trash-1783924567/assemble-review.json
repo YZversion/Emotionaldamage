@@ -1,0 +1,13 @@
+{
+  "fixedSectionOk": true,
+  "nodesRecovered": 0,
+  "edgesRestored": 0,
+  "crossBatchEdgesAdded": 0,
+  "typesRemapped": 0,
+  "complexityRemapped": 0,
+  "notes": [
+    "合并报告未出现自动修正项或无法修正项，35 个节点与 45 条边的输出规模合理。",
+    "scan-result.json 的 importMap 共包含 6 条导入关系，assembled-graph.json 已全部覆盖，无需补充跨批次导入边。",
+    "图中未发现重复节点 ID、悬空边或非法复杂度值，暂无剩余结构性问题。"
+  ]
+}

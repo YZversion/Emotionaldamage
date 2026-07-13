@@ -41,6 +41,96 @@ body {
   position: relative;
 }
 
+/* ===== API 门禁 ===== */
+#step-api {
+  padding: 48px 24px 24px;
+}
+
+.api-gate-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.api-gate-card {
+  width: 100%;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.api-gate-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.api-gate-input {
+  width: 100%;
+  border: 1.5px solid #e5e7eb;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.api-gate-input:focus {
+  border-color: var(--primary);
+}
+
+.api-gate-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.api-gate-hint a {
+  color: var(--accent);
+}
+
+.api-gate-status {
+  min-height: 1.2em;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.api-gate-status.error {
+  color: #dc2626;
+}
+
+.api-gate-status.ok {
+  color: #059669;
+}
+
+.api-connected-bar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--accent-light);
+  border-radius: var(--radius-sm);
+}
+
+.api-connected-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 /* ===== Steps ===== */
 .step {
   display: none;
@@ -207,6 +297,71 @@ body {
   overflow-x: auto;
   color: var(--text);
   border: 1px solid #eee;
+}
+
+/* ===== 身份确认 ===== */
+#step-identify {
+  padding: 48px 24px;
+}
+
+.identify-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.identify-title {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.identify-hint {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.identify-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 8px;
+}
+
+.identify-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  font-family: inherit;
+  transition: var(--transition);
+}
+
+.identify-option:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.identify-option-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.identify-option-hint {
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 500;
 }
 
 /* ===== 加载区 ===== */
@@ -1234,6 +1389,31 @@ body {
   color: var(--text-muted);
   margin-top: 4px;
   text-align: right;
+}
+
+.ai-chat-privacy {
+  margin: 8px 12px 0;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #92400e;
+  background: #fffbeb;
+  border-radius: 8px;
+  border: 1px solid #fde68a;
+}
+
+.ai-chat-model-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ai-chat-model-toggle input {
+  accent-color: var(--accent);
 }
 
 /* Mobile */

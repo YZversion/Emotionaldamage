@@ -1,0 +1,52 @@
+[
+  {
+    "id": "layer:ui-orchestration",
+    "name": "UI 与流程编排层",
+    "description": "承载浏览器 SPA 外壳、启动流程、页面状态与交互编排，并将分析结果渲染为可视化报告和分享卡片。",
+    "nodeIds": [
+      "file:index.html",
+      "file:src/main.js",
+      "file:src/ui.js",
+      "file:src/cardRenderer.js",
+      "file:src/styles.css"
+    ]
+  },
+  {
+    "id": "layer:analysis-core",
+    "name": "数据解析与分析核心层",
+    "description": "把不同格式的微信聊天 JSON 归一化为统一消息，并计算关系信号、评分、时间趋势和画像标签。",
+    "nodeIds": [
+      "file:src/parser.js",
+      "file:src/analyzer.js"
+    ]
+  },
+  {
+    "id": "layer:ai-integration",
+    "name": "AI 顾问集成层",
+    "description": "将本地分析结果组织为顾问上下文，通过 OpenRouter streaming API 提供可选的交互式关系建议。",
+    "nodeIds": [
+      "file:src/aiChat.js"
+    ]
+  },
+  {
+    "id": "layer:project-support",
+    "name": "项目配置与分析支持层",
+    "description": "集中管理 Vite 构建、依赖声明以及 Understand Anything 知识图谱分析的配置和文件过滤规则。",
+    "nodeIds": [
+      "config:package.json",
+      "file:vite.config.js",
+      "config:.understand-anything/config.json",
+      "file:.understand-anything/.understandignore"
+    ]
+  },
+  {
+    "id": "layer:documentation",
+    "name": "项目文档层",
+    "description": "记录项目用法、浏览器端数据流、分析结果契约以及 AI 顾问模块的行为与隐私边界。",
+    "nodeIds": [
+      "document:README.md",
+      "document:architecture.md",
+      "document:agent.md"
+    ]
+  }
+]

@@ -12,8 +12,38 @@
 <body>
   <div id="app">
 
+    <!-- ====== STEP 0: API 门禁 ====== -->
+    <section id="step-api" class="step active">
+      <div class="api-gate-container">
+        <div class="brand">
+          <div class="brand-icon">🔑</div>
+          <h1 class="brand-title">Emotional Damage</h1>
+          <p class="brand-subtitle">先连接 OpenRouter，再上传聊天做 LLM 评测</p>
+        </div>
+
+        <div class="api-gate-card">
+          <label class="api-gate-label" for="apiKeyInput">OpenRouter API Key</label>
+          <input
+            id="apiKeyInput"
+            class="api-gate-input"
+            type="password"
+            autocomplete="off"
+            placeholder="sk-or-v1-..."
+          />
+          <p class="api-gate-hint">
+            Key 仅保存在本机浏览器。评测阶段会把截断后的聊天发送到 OpenRouter。
+            获取 Key：
+            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">openrouter.ai/keys</a>
+          </p>
+          <button class="btn btn-primary" id="btnConnectApi" type="button">连接并进入</button>
+          <button class="btn btn-secondary" id="btnUseSavedKey" type="button" hidden>使用已保存的 Key 进入</button>
+          <p class="api-gate-status" id="apiGateStatus" role="status"></p>
+        </div>
+      </div>
+    </section>
+
     <!-- ====== STEP 1: 导入区 ====== -->
-    <section id="step-import" class="step active">
+    <section id="step-import" class="step">
       <div class="import-container">
         <div class="brand">
           <div class="brand-icon">💔</div>
@@ -21,10 +51,15 @@
           <p class="brand-subtitle">暧昧探测器 · 把聊天记录变成可分享的关系卡片</p>
         </div>
 
+        <div class="api-connected-bar">
+          <span class="api-connected-label" id="apiConnectedLabel">API 已连接</span>
+          <button type="button" class="btn btn-ghost btn-sm" id="btnChangeApiKey">更换 / 退出 Key</button>
+        </div>
+
         <div class="upload-zone" id="uploadZone">
           <div class="upload-icon">📄</div>
           <p class="upload-text">上传微信聊天记录 <strong>JSON</strong> 文件</p>
-          <p class="upload-hint">支持标准 JSON 格式，数据仅在浏览器本地处理，不会上传</p>
+          <p class="upload-hint">需已连接 API。后续评测会上传截断后的聊天内容到 OpenRouter。</p>
           <input type="file" id="fileInput" accept=".json" hidden />
           <button class="btn btn-primary" id="btnSelectFile">选择文件</button>
           <button class="btn btn-secondary" id="btnDemo">🎲 先用 Demo 数据试试</button>
@@ -33,18 +68,17 @@
         <div class="format-hint">
           <details>
             <summary>支持的 JSON 格式示例</summary>
-            <pre><code>// 格式一：消息数组
+            <pre><code>// 格式一：带 is_send（推荐，可自动区分「我 / TA」）
 [
   {
     "time": "2026-05-25 10:30:00",
     "is_send": true,
     "sender": "我",
     "content": "在干嘛呢"
-  },
-  ...
+  }
 ]
 
-// 格式二：带 meta 的对象
+// 格式二：仅有 sender 时，导入后会请你选择「哪个是我」
 {
   "chat": "联系人姓名",
   "messages": [
@@ -61,15 +95,26 @@
       </div>
     </section>
 
+    <!-- ====== STEP 1.5: 确认「哪个是我」====== -->
+    <section id="step-identify" class="step">
+      <div class="identify-container">
+        <div class="brand-icon">👤</div>
+        <h2 class="identify-title">请选择：哪个是你？</h2>
+        <p class="identify-hint">文件里没有「是否本人发送」标记，需要你确认后才能正确做双向对比。</p>
+        <div class="identify-options" id="identifyOptions"></div>
+        <button class="btn btn-ghost" id="btnIdentifyBack">← 返回</button>
+      </div>
+    </section>
+
     <!-- ====== STEP 2: 分析中 ====== -->
     <section id="step-loading" class="step">
       <div class="loading-container">
         <div class="loading-heart">💔</div>
-        <h2 class="loading-title">正在扫描聊天记录...</h2>
+        <h2 class="loading-title">正在分析…</h2>
         <div class="loading-bar-track">
           <div class="loading-bar-fill" id="loadingBar"></div>
         </div>
-        <p class="loading-status" id="loadingStatus">读取消息中...</p>
+        <p class="loading-status" id="loadingStatus">正在解析并分析…</p>
       </div>
     </section>
 

@@ -1,0 +1,305 @@
+{
+  "nodes": [
+    {
+      "id": "file:src/aiChat.js",
+      "type": "file",
+      "name": "aiChat.js",
+      "filePath": "src/aiChat.js",
+      "summary": "基于本地分析结果构造情感顾问上下文，并通过 OpenRouter 的 streaming chat completions API 提供交互式问答。模块同时负责会话状态、API Key 持久化和聊天面板 DOM 更新。",
+      "tags": ["ai-chat", "openrouter", "streaming", "ui-component"],
+      "complexity": "complex",
+      "languageNotes": "使用原生 Fetch API 读取 SSE 风格的数据流，并通过闭包维护单次页面会话状态。"
+    },
+    {
+      "id": "function:src/aiChat.js:buildSystemPrompt",
+      "type": "function",
+      "name": "buildSystemPrompt",
+      "filePath": "src/aiChat.js",
+      "lineRange": [12, 71],
+      "summary": "把评分、双向比例、信号分布、代表语录和画像标签压缩为中文 system prompt，作为 AI 顾问回答的事实上下文。",
+      "tags": ["prompt-builder", "serialization", "analysis-context"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/aiChat.js:callLLM",
+      "type": "function",
+      "name": "callLLM",
+      "filePath": "src/aiChat.js",
+      "lineRange": [74, 140],
+      "summary": "向 OpenRouter 发起流式 chat completions 请求，解析逐行 data 事件并把增量文本交给回调，同时将 HTTP 错误转换为可展示的异常。",
+      "tags": ["api-client", "streaming", "error-handling", "openrouter"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/aiChat.js:initAIChat",
+      "type": "function",
+      "name": "initAIChat",
+      "filePath": "src/aiChat.js",
+      "lineRange": [143, 339],
+      "summary": "初始化 AI 顾问面板、对话历史和所有输入事件，并在用户提问时驱动流式回答、错误反馈、折叠状态与 API Key 保存。",
+      "tags": ["ui-initializer", "event-handler", "conversation-state", "local-storage"],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/analyzer.js",
+      "type": "file",
+      "name": "analyzer.js",
+      "filePath": "src/analyzer.js",
+      "summary": "纯前端关系分析引擎，按关键词和 emoji 检测五类暧昧信号，并计算总分、等级、双方信号比例、每日开场比例、月度趋势和代表语录。输出是结果页、分享卡片和 AI 顾问共同消费的统一分析对象。",
+      "tags": ["analysis-engine", "heuristic-scoring", "data-transformation", "relationship-signals"],
+      "complexity": "complex",
+      "languageNotes": "采用配置驱动的词典扫描与多阶段聚合，主要计算完全在浏览器内同步完成。"
+    },
+    {
+      "id": "function:src/analyzer.js:generateTags",
+      "type": "function",
+      "name": "generateTags",
+      "filePath": "src/analyzer.js",
+      "lineRange": [71, 126],
+      "summary": "根据总体信号密度、双方暧昧比例和最突出信号类别生成面向展示的关系画像标签。",
+      "tags": ["classification", "tag-generator", "heuristic-rules"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/analyzer.js:analyze",
+      "type": "function",
+      "name": "analyze",
+      "filePath": "src/analyzer.js",
+      "lineRange": [130, 353],
+      "summary": "对标准化消息执行信号匹配、加权评分和多维聚合，生成包含等级、双向对比、时间线、Top 语录及标签的完整报告。",
+      "tags": ["analysis-pipeline", "scoring", "aggregation", "exported-api"],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/cardRenderer.js",
+      "type": "file",
+      "name": "cardRenderer.js",
+      "filePath": "src/cardRenderer.js",
+      "summary": "把分析结果渲染为固定宽度的白底分享卡片，集中展示评分、信号分布、双向比例、代表语录和关系标签，供截图、下载或复制。",
+      "tags": ["card-renderer", "dom-rendering", "share-output", "visualization"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/cardRenderer.js:renderShareCard",
+      "type": "function",
+      "name": "renderShareCard",
+      "filePath": "src/cardRenderer.js",
+      "lineRange": [11, 112],
+      "summary": "将分析结果插值为完整分享卡片 HTML，包括 SVG 分数环、摘要统计、双方对比、Top 语录和标签区域。",
+      "tags": ["dom-rendering", "template-generation", "share-card", "exported-api"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/cardRenderer.js:renderCardBars",
+      "type": "function",
+      "name": "renderCardBars",
+      "filePath": "src/cardRenderer.js",
+      "lineRange": [114, 137],
+      "summary": "按最大信号值归一化各类别宽度，并生成分享卡片中的信号分布条形列表。",
+      "tags": ["visualization", "normalization", "template-helper"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/main.js",
+      "type": "file",
+      "name": "main.js",
+      "filePath": "src/main.js",
+      "summary": "浏览器应用入口，加载全局样式，并在 DOMContentLoaded 后调用 UI 初始化函数绑定页面行为。",
+      "tags": ["entry-point", "bootstrap", "browser-app"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/parser.js",
+      "type": "file",
+      "name": "parser.js",
+      "filePath": "src/parser.js",
+      "summary": "接收上传的聊天 JSON，兼容数组或带 messages 字段的对象，并把多种时间、发送者、方向和内容字段归一化为分析器所需格式。另提供随机 Demo 聊天数据用于无文件体验。",
+      "tags": ["parser", "normalization", "validation", "demo-data"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parser.js:parseChatJson",
+      "type": "function",
+      "name": "parseChatJson",
+      "filePath": "src/parser.js",
+      "lineRange": [23, 59],
+      "summary": "解析并验证上传的 JSON 顶层结构，标准化消息、识别参与者，并返回联系人名称与原始消息计数。",
+      "tags": ["json-parser", "validation", "exported-api"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/parser.js:normalizeMessage",
+      "type": "function",
+      "name": "normalizeMessage",
+      "filePath": "src/parser.js",
+      "lineRange": [61, 104],
+      "summary": "把不同导出格式中的时间戳、发送者、发送方向和文本字段映射到统一消息对象，并过滤无内容的非文本记录。",
+      "tags": ["normalization", "data-mapping", "message-filter"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/parser.js:recognizeParticipants",
+      "type": "function",
+      "name": "recognizeParticipants",
+      "filePath": "src/parser.js",
+      "lineRange": [106, 133],
+      "summary": "统计发送者频次并结合 isMe 标记推断本人和主要联系人，无法唯一识别时退化为消息量最多的两人。",
+      "tags": ["participant-detection", "aggregation", "fallback-logic"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/parser.js:generateDemoData",
+      "type": "function",
+      "name": "generateDemoData",
+      "filePath": "src/parser.js",
+      "lineRange": [138, 196],
+      "summary": "从预置双方话术中随机生成约一年的 300 至 499 条时间有序消息，并序列化为应用可直接导入的 JSON。",
+      "tags": ["demo-data", "fixture-generator", "serialization", "exported-api"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/ui.js",
+      "type": "file",
+      "name": "ui.js",
+      "filePath": "src/ui.js",
+      "summary": "应用的浏览器编排层，连接文件导入、消息解析、关系分析、结果渲染、AI 顾问和分享卡片导出，并维护页面步骤与当前分析状态。还负责拖放、复制图片、文本降级和下载等用户交互。",
+      "tags": ["ui-orchestrator", "event-handler", "dom-rendering", "export-workflow"],
+      "complexity": "complex",
+      "languageNotes": "以模块级状态和缓存 DOM 引用组织原生 JavaScript 单页流程，通过 html2canvas 与 Clipboard API 完成导出。"
+    },
+    {
+      "id": "function:src/ui.js:animateLoading",
+      "type": "function",
+      "name": "animateLoading",
+      "filePath": "src/ui.js",
+      "lineRange": [58, 80],
+      "summary": "按预设时间推进加载进度和状态文案，并在动画完成后执行实际分析回调。",
+      "tags": ["loading-state", "animation", "callback-orchestration"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/ui.js:renderResult",
+      "type": "function",
+      "name": "renderResult",
+      "filePath": "src/ui.js",
+      "lineRange": [92, 201],
+      "summary": "把完整分析对象渲染到结果页的评分环、信号分布、双向比较、语录、标签和时间线，并为当前结果初始化 AI 顾问。",
+      "tags": ["result-renderer", "dom-rendering", "visualization", "ai-integration"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/ui.js:renderTimeline",
+      "type": "function",
+      "name": "renderTimeline",
+      "filePath": "src/ui.js",
+      "lineRange": [203, 224],
+      "summary": "将双方每月暧昧消息计数归一化为成对柱状图，并处理空时间线状态。",
+      "tags": ["timeline", "visualization", "dom-rendering"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/ui.js:handleData",
+      "type": "function",
+      "name": "handleData",
+      "filePath": "src/ui.js",
+      "lineRange": [227, 239],
+      "summary": "串联 JSON 解析、加载动画、关系分析和结果渲染，并在任一步骤失败时提示错误并返回导入页。",
+      "tags": ["workflow-orchestration", "error-handling", "data-pipeline"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/ui.js:exportCard",
+      "type": "function",
+      "name": "exportCard",
+      "filePath": "src/ui.js",
+      "lineRange": [250, 260],
+      "summary": "以当前分析结果刷新分享卡片，并把页面切换到卡片预览步骤。",
+      "tags": ["share-card", "workflow", "dom-rendering"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/ui.js:downloadCard",
+      "type": "function",
+      "name": "downloadCard",
+      "filePath": "src/ui.js",
+      "lineRange": [262, 290],
+      "summary": "用 html2canvas 以双倍分辨率捕获卡片 DOM，并通过临时链接下载带时间戳的 PNG 文件。",
+      "tags": ["image-export", "html2canvas", "download", "error-handling"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/ui.js:copyCardToClipboard",
+      "type": "function",
+      "name": "copyCardToClipboard",
+      "filePath": "src/ui.js",
+      "lineRange": [304, 348],
+      "summary": "将最新分享卡片捕获为 PNG 并写入系统剪贴板；图片复制不可用时退化为包含核心指标的纯文本报告。",
+      "tags": ["clipboard", "image-export", "fallback-logic", "html2canvas"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/ui.js:handleSendToThem",
+      "type": "function",
+      "name": "handleSendToThem",
+      "filePath": "src/ui.js",
+      "lineRange": [351, 364],
+      "summary": "封装“发给 TA”按钮的忙碌状态和反馈，复用卡片复制流程把可分享内容放入剪贴板。",
+      "tags": ["event-handler", "clipboard", "button-state"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/ui.js:initUI",
+      "type": "function",
+      "name": "initUI",
+      "filePath": "src/ui.js",
+      "lineRange": [367, 412],
+      "summary": "为文件选择、拖放、Demo、页面导航、卡片复制和下载等入口注册事件监听，完成整个浏览器界面的启动绑定。",
+      "tags": ["ui-initializer", "event-binding", "entry-point", "exported-api"],
+      "complexity": "moderate"
+    }
+  ],
+  "edges": [
+    {"source": "file:src/main.js", "target": "file:src/styles.css", "type": "imports", "direction": "forward", "weight": 0.7},
+    {"source": "file:src/main.js", "target": "file:src/ui.js", "type": "imports", "direction": "forward", "weight": 0.7},
+    {"source": "file:src/ui.js", "target": "file:src/aiChat.js", "type": "imports", "direction": "forward", "weight": 0.7},
+    {"source": "file:src/ui.js", "target": "file:src/analyzer.js", "type": "imports", "direction": "forward", "weight": 0.7},
+    {"source": "file:src/ui.js", "target": "file:src/cardRenderer.js", "type": "imports", "direction": "forward", "weight": 0.7},
+    {"source": "file:src/ui.js", "target": "file:src/parser.js", "type": "imports", "direction": "forward", "weight": 0.7},
+
+    {"source": "file:src/aiChat.js", "target": "function:src/aiChat.js:buildSystemPrompt", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/aiChat.js", "target": "function:src/aiChat.js:callLLM", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/aiChat.js", "target": "function:src/aiChat.js:initAIChat", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/analyzer.js", "target": "function:src/analyzer.js:generateTags", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/analyzer.js", "target": "function:src/analyzer.js:analyze", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/cardRenderer.js", "target": "function:src/cardRenderer.js:renderShareCard", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/cardRenderer.js", "target": "function:src/cardRenderer.js:renderCardBars", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/parser.js", "target": "function:src/parser.js:parseChatJson", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/parser.js", "target": "function:src/parser.js:normalizeMessage", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/parser.js", "target": "function:src/parser.js:recognizeParticipants", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/parser.js", "target": "function:src/parser.js:generateDemoData", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/ui.js", "target": "function:src/ui.js:animateLoading", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/ui.js", "target": "function:src/ui.js:renderResult", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/ui.js", "target": "function:src/ui.js:renderTimeline", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/ui.js", "target": "function:src/ui.js:handleData", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/ui.js", "target": "function:src/ui.js:exportCard", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/ui.js", "target": "function:src/ui.js:downloadCard", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/ui.js", "target": "function:src/ui.js:copyCardToClipboard", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/ui.js", "target": "function:src/ui.js:handleSendToThem", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:src/ui.js", "target": "function:src/ui.js:initUI", "type": "contains", "direction": "forward", "weight": 1.0},
+
+    {"source": "file:src/aiChat.js", "target": "function:src/aiChat.js:initAIChat", "type": "exports", "direction": "forward", "weight": 0.8},
+    {"source": "file:src/analyzer.js", "target": "function:src/analyzer.js:analyze", "type": "exports", "direction": "forward", "weight": 0.8},
+    {"source": "file:src/cardRenderer.js", "target": "function:src/cardRenderer.js:renderShareCard", "type": "exports", "direction": "forward", "weight": 0.8},
+    {"source": "file:src/parser.js", "target": "function:src/parser.js:parseChatJson", "type": "exports", "direction": "forward", "weight": 0.8},
+    {"source": "file:src/parser.js", "target": "function:src/parser.js:generateDemoData", "type": "exports", "direction": "forward", "weight": 0.8},
+    {"source": "file:src/ui.js", "target": "function:src/ui.js:initUI", "type": "exports", "direction": "forward", "weight": 0.8},
+
+    {"source": "file:src/main.js", "target": "function:src/ui.js:initUI", "type": "calls", "direction": "forward", "weight": 0.8},
+    {"source": "function:src/ui.js:renderResult", "target": "function:src/aiChat.js:initAIChat", "type": "calls", "direction": "forward", "weight": 0.8},
+    {"source": "function:src/ui.js:handleData", "target": "function:src/parser.js:parseChatJson", "type": "calls", "direction": "forward", "weight": 0.8},
+    {"source": "function:src/ui.js:handleData", "target": "function:src/analyzer.js:analyze", "type": "calls", "direction": "forward", "weight": 0.8},
+    {"source": "function:src/ui.js:exportCard", "target": "function:src/cardRenderer.js:renderShareCard", "type": "calls", "direction": "forward", "weight": 0.8},
+    {"source": "function:src/ui.js:copyCardToClipboard", "target": "function:src/cardRenderer.js:renderShareCard", "type": "calls", "direction": "forward", "weight": 0.8},
+    {"source": "function:src/ui.js:initUI", "target": "function:src/parser.js:generateDemoData", "type": "calls", "direction": "forward", "weight": 0.8}
+  ]
+}

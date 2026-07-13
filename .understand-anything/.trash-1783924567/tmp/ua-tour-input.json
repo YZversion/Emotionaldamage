@@ -1,0 +1,589 @@
+{
+  "nodes": [
+    {
+      "id": "file:src/aiChat.js",
+      "type": "file",
+      "name": "aiChat.js",
+      "filePath": "src/aiChat.js",
+      "summary": "基于本地分析结果构造情感顾问上下文，并通过 OpenRouter 的 streaming chat completions API 提供交互式问答。模块同时负责会话状态、API Key 持久化和聊天面板 DOM 更新。",
+      "tags": [
+        "ai-chat",
+        "openrouter",
+        "streaming",
+        "ui-component"
+      ],
+      "complexity": "complex",
+      "languageNotes": "使用原生 Fetch API 读取 SSE 风格的数据流，并通过闭包维护单次页面会话状态。"
+    },
+    {
+      "id": "file:src/analyzer.js",
+      "type": "file",
+      "name": "analyzer.js",
+      "filePath": "src/analyzer.js",
+      "summary": "纯前端关系分析引擎，按关键词和 emoji 检测五类暧昧信号，并计算总分、等级、双方信号比例、每日开场比例、月度趋势和代表语录。输出是结果页、分享卡片和 AI 顾问共同消费的统一分析对象。",
+      "tags": [
+        "analysis-engine",
+        "heuristic-scoring",
+        "data-transformation",
+        "relationship-signals"
+      ],
+      "complexity": "complex",
+      "languageNotes": "采用配置驱动的词典扫描与多阶段聚合，主要计算完全在浏览器内同步完成。"
+    },
+    {
+      "id": "file:src/cardRenderer.js",
+      "type": "file",
+      "name": "cardRenderer.js",
+      "filePath": "src/cardRenderer.js",
+      "summary": "把分析结果渲染为固定宽度的白底分享卡片，集中展示评分、信号分布、双向比例、代表语录和关系标签，供截图、下载或复制。",
+      "tags": [
+        "card-renderer",
+        "dom-rendering",
+        "share-output",
+        "visualization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/main.js",
+      "type": "file",
+      "name": "main.js",
+      "filePath": "src/main.js",
+      "summary": "浏览器应用入口，加载全局样式，并在 DOMContentLoaded 后调用 UI 初始化函数绑定页面行为。",
+      "tags": [
+        "entry-point",
+        "bootstrap",
+        "browser-app"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/parser.js",
+      "type": "file",
+      "name": "parser.js",
+      "filePath": "src/parser.js",
+      "summary": "接收上传的聊天 JSON，兼容数组或带 messages 字段的对象，并把多种时间、发送者、方向和内容字段归一化为分析器所需格式。另提供随机 Demo 聊天数据用于无文件体验。",
+      "tags": [
+        "parser",
+        "normalization",
+        "validation",
+        "demo-data"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/ui.js",
+      "type": "file",
+      "name": "ui.js",
+      "filePath": "src/ui.js",
+      "summary": "应用的浏览器编排层，连接文件导入、消息解析、关系分析、结果渲染、AI 顾问和分享卡片导出，并维护页面步骤与当前分析状态。还负责拖放、复制图片、文本降级和下载等用户交互。",
+      "tags": [
+        "ui-orchestrator",
+        "event-handler",
+        "dom-rendering",
+        "export-workflow"
+      ],
+      "complexity": "complex",
+      "languageNotes": "以模块级状态和缓存 DOM 引用组织原生 JavaScript 单页流程，通过 html2canvas 与 Clipboard API 完成导出。"
+    },
+    {
+      "id": "document:README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "README.md",
+      "summary": "项目总览与上手文档，说明浏览器本地微信聊天 JSON 分析、暧昧评分、关系画像、AI 顾问及分享卡片能力，并给出支持的数据格式、项目结构和隐私边界。",
+      "tags": [
+        "documentation",
+        "entry-point",
+        "getting-started",
+        "privacy"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:agent.md",
+      "type": "document",
+      "name": "agent.md",
+      "filePath": "agent.md",
+      "summary": "AI 情感顾问模块说明，覆盖 `aiChat.js` 的 OpenRouter 请求流程、System Prompt 内容、SSE 流式对话状态、界面交互、错误处理与隐私约束。",
+      "tags": [
+        "documentation",
+        "ai-advisor",
+        "openrouter",
+        "sse",
+        "privacy"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:architecture.md",
+      "type": "document",
+      "name": "architecture.md",
+      "filePath": "architecture.md",
+      "summary": "浏览器端 SPA 的架构与数据流文档，描述解析、分析、UI、卡片导出及 AI 顾问模块的协作，并定义 `analyze()` 结果结构和信号评分、双向对比、时间线聚合等关键决策。",
+      "tags": [
+        "documentation",
+        "architecture",
+        "data-flow",
+        "analysis-engine",
+        "privacy"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:index.html",
+      "type": "file",
+      "name": "index.html",
+      "filePath": "index.html",
+      "summary": "单页应用的 HTML 入口与静态页面骨架，预置导入、加载、分析结果、分享卡片四个步骤及各模块挂载容器，最后以 ES Module 加载 `/src/main.js`。",
+      "tags": [
+        "entry-point",
+        "markup",
+        "spa-shell",
+        "ui-layout"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "使用语义化 section、nav、header 组织多步骤界面，动态分析内容与分享卡片由 JavaScript 填充。"
+    },
+    {
+      "id": "config:package.json",
+      "type": "config",
+      "name": "package.json",
+      "filePath": "package.json",
+      "summary": "前端包与构建配置，声明 ES Modules、Vite 的开发/构建/预览脚本，以及客户端分享卡片截图所需的 `html2canvas` 运行时依赖。",
+      "tags": [
+        "configuration",
+        "build-system",
+        "vite",
+        "dependency-management"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:.understand-anything/.understandignore",
+      "type": "file",
+      "name": ".understandignore",
+      "filePath": ".understand-anything/.understandignore",
+      "summary": "为 Understand Anything 分析器提供与 .gitignore 类似的排除规则模板，涵盖环境文件、编辑器产物和多语言测试文件。当前规则均为注释示例，因此不会额外排除项目文件，实际仍依赖工具内置默认值。",
+      "tags": [
+        "analysis-config",
+        "ignore-rules",
+        "file-filtering"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:.understand-anything/config.json",
+      "type": "config",
+      "name": "config.json",
+      "filePath": ".understand-anything/config.json",
+      "summary": "配置 Understand Anything 的分析产物使用中文输出，仅设置 outputLanguage 为 zh。",
+      "tags": [
+        "configuration",
+        "output-language",
+        "knowledge-graph"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/styles.css",
+      "type": "file",
+      "name": "styles.css",
+      "filePath": "src/styles.css",
+      "summary": "集中定义浏览器端单页界面的完整视觉系统，覆盖导入、加载、分析结果、分享卡片与 AI 对话面板，并通过响应式规则适配窄屏设备。文件还包含主题 CSS custom properties、状态样式、图表布局和多组过渡动画。",
+      "tags": [
+        "styling",
+        "responsive-design",
+        "component-styles",
+        "animation",
+        "mobile-ui"
+      ],
+      "complexity": "complex",
+      "languageNotes": "使用 CSS custom properties 统一颜色、圆角、阴影和动效，并以 480px media query 调整分享卡片及 AI 对话面板布局。"
+    },
+    {
+      "id": "file:vite.config.js",
+      "type": "file",
+      "name": "vite.config.js",
+      "filePath": "vite.config.js",
+      "summary": "定义 Vite 的本地开发与静态构建参数：项目根目录保持当前目录、相对 base 便于静态部署、开发服务器自动打开 3000 端口，并将构建结果写入 dist。",
+      "tags": [
+        "configuration",
+        "build-system",
+        "dev-server",
+        "vite"
+      ],
+      "complexity": "simple",
+      "languageNotes": "采用 ES module 的 defineConfig 包装对象配置。"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:src/main.js",
+      "target": "file:src/styles.css",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/main.js",
+      "target": "file:src/ui.js",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "file:src/aiChat.js",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "file:src/analyzer.js",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "file:src/cardRenderer.js",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "file:src/parser.js",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/aiChat.js",
+      "target": "function:src/aiChat.js:buildSystemPrompt",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/aiChat.js",
+      "target": "function:src/aiChat.js:callLLM",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/aiChat.js",
+      "target": "function:src/aiChat.js:initAIChat",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/analyzer.js",
+      "target": "function:src/analyzer.js:generateTags",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/analyzer.js",
+      "target": "function:src/analyzer.js:analyze",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/cardRenderer.js",
+      "target": "function:src/cardRenderer.js:renderShareCard",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/cardRenderer.js",
+      "target": "function:src/cardRenderer.js:renderCardBars",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parser.js",
+      "target": "function:src/parser.js:parseChatJson",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parser.js",
+      "target": "function:src/parser.js:normalizeMessage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parser.js",
+      "target": "function:src/parser.js:recognizeParticipants",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parser.js",
+      "target": "function:src/parser.js:generateDemoData",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "function:src/ui.js:animateLoading",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "function:src/ui.js:renderResult",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "function:src/ui.js:renderTimeline",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "function:src/ui.js:handleData",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "function:src/ui.js:exportCard",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "function:src/ui.js:downloadCard",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "function:src/ui.js:copyCardToClipboard",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "function:src/ui.js:handleSendToThem",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "function:src/ui.js:initUI",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/aiChat.js",
+      "target": "function:src/aiChat.js:initAIChat",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/analyzer.js",
+      "target": "function:src/analyzer.js:analyze",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/cardRenderer.js",
+      "target": "function:src/cardRenderer.js:renderShareCard",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parser.js",
+      "target": "function:src/parser.js:parseChatJson",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parser.js",
+      "target": "function:src/parser.js:generateDemoData",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/ui.js",
+      "target": "function:src/ui.js:initUI",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/main.js",
+      "target": "function:src/ui.js:initUI",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:src/ui.js:renderResult",
+      "target": "function:src/aiChat.js:initAIChat",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:src/ui.js:handleData",
+      "target": "function:src/parser.js:parseChatJson",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:src/ui.js:handleData",
+      "target": "function:src/analyzer.js:analyze",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:src/ui.js:exportCard",
+      "target": "function:src/cardRenderer.js:renderShareCard",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:src/ui.js:copyCardToClipboard",
+      "target": "function:src/cardRenderer.js:renderShareCard",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:src/ui.js:initUI",
+      "target": "function:src/parser.js:generateDemoData",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:index.html",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:package.json",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:agent.md",
+      "target": "file:index.html",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:architecture.md",
+      "target": "file:index.html",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:package.json",
+      "target": "file:index.html",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:src/styles.css",
+      "target": "file:src/main.js",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:ui-orchestration",
+      "name": "UI 与流程编排层",
+      "description": "承载浏览器 SPA 外壳、启动流程、页面状态与交互编排，并将分析结果渲染为可视化报告和分享卡片。",
+      "nodeIds": [
+        "file:index.html",
+        "file:src/main.js",
+        "file:src/ui.js",
+        "file:src/cardRenderer.js",
+        "file:src/styles.css"
+      ]
+    },
+    {
+      "id": "layer:analysis-core",
+      "name": "数据解析与分析核心层",
+      "description": "把不同格式的微信聊天 JSON 归一化为统一消息，并计算关系信号、评分、时间趋势和画像标签。",
+      "nodeIds": [
+        "file:src/parser.js",
+        "file:src/analyzer.js"
+      ]
+    },
+    {
+      "id": "layer:ai-integration",
+      "name": "AI 顾问集成层",
+      "description": "将本地分析结果组织为顾问上下文，通过 OpenRouter streaming API 提供可选的交互式关系建议。",
+      "nodeIds": [
+        "file:src/aiChat.js"
+      ]
+    },
+    {
+      "id": "layer:project-support",
+      "name": "项目配置与分析支持层",
+      "description": "集中管理 Vite 构建、依赖声明以及 Understand Anything 知识图谱分析的配置和文件过滤规则。",
+      "nodeIds": [
+        "config:package.json",
+        "file:vite.config.js",
+        "config:.understand-anything/config.json",
+        "file:.understand-anything/.understandignore"
+      ]
+    },
+    {
+      "id": "layer:documentation",
+      "name": "项目文档层",
+      "description": "记录项目用法、浏览器端数据流、分析结果契约以及 AI 顾问模块的行为与隐私边界。",
+      "nodeIds": [
+        "document:README.md",
+        "document:architecture.md",
+        "document:agent.md"
+      ]
+    }
+  ]
+}

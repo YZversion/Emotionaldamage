@@ -1,0 +1,29 @@
+{
+  "issues": [],
+  "warnings": [
+    "Node 'file:.understand-anything/.understandignore' has no edges (orphan)",
+    "Node 'config:.understand-anything/config.json' has no edges (orphan)",
+    "Node 'file:vite.config.js' has no edges (orphan)"
+  ],
+  "stats": {
+    "totalNodes": 35,
+    "totalEdges": 45,
+    "totalLayers": 5,
+    "tourSteps": 8,
+    "nodeTypes": {
+      "file": 10,
+      "function": 20,
+      "document": 3,
+      "config": 2
+    },
+    "edgeTypes": {
+      "imports": 6,
+      "contains": 20,
+      "exports": 6,
+      "calls": 7,
+      "documents": 4,
+      "configures": 1,
+      "related": 1
+    }
+  }
+}
