@@ -1,103 +1,49 @@
-# Emotional Damage · 暧昧探测 & 关系画像卡片生成器
+# Emotional Damage · 暧昧探测 & 关系画像卡片
 
-> 把微信聊天记录变成可分享的暧昧指数卡片。解析与评分在浏览器本地完成；可选 AI 顾问需联网。
+> 上传微信导出的聊天记录 + 双方星座/MBTI → OpenRouter LLM 出打分、深度评测与建议 → 可分享卡片。  
+> 方法论 Prompt 蒸馏自开源 [情圣 / qingsheng-skill](https://github.com/tomwong001/qingsheng-skill)（MIT）。
 
-## 项目简介
-
-Emotional Damage 是一款**纯前端**（Vanilla JS + Vite）工具应用，用户上传微信聊天记录的 JSON 文件后，系统通过信号词典引擎自动检测暧昧关键词、表情、深夜聊天等行为，生成：
-
-- 📊 **暧昧指数评分**（0–100 分，S/A/B/C/D 五级）
-- 📡 **五维暧昧信号分布**（亲昵称呼、想念信号、深夜亲密、暧昧动作、暧昧表情）
-- ⚖️ **双向对比**（你和 TA 谁更主动）
-- 💬 **Top 暧昧语录高亮**
-- 🏷️ **关系画像标签**
-- 📈 **暧昧时间线**
-- 🤖 **AI 情感顾问**（可选；需 OpenRouter API Key，会上传分析摘要）
-- 📸 **可导出/复制的分享卡片**
-
-## 快速开始
+## 怎么用
 
 ```bash
-# 安装依赖
 npm install
-
-# 启动开发服务器
 npm run dev
-
-# 构建生产版本
-npm run build
-
-# 预览构建产物
-npm run preview
 ```
 
-## 使用说明
+1. 连接 OpenRouter API Key（免费模型也需要 Key）
+2. 按页内「推荐导出三步」用工具（如 WeChatMsg）导出 TXT/HTML，拖入页面（也支持 JSON）
+3. 填写双方星座、MBTI（可选「不清楚」）
+4. 开始评测 → 查看报告 / 分享卡片
 
-1. 打开页面后，上传微信聊天记录的 JSON 文件（支持多种格式）
-2. 若文件没有 `is_send` 等「是否本人」字段，会要求你选择「哪个是你」
-3. 系统本地分析并展示暧昧探测结果
-4. 点击「💌 发给他/她」复制卡片到剪贴板，或「📸 分享卡片」导出 PNG
-5. （可选）展开 AI 顾问，填写 OpenRouter API Key 后提问——会联网上传摘要与脱敏语录
+Demo 可跳过导出，直接体验流程。
 
-### 支持的 JSON 格式
+## 隐私（请认真读）
 
-```json
-// 格式一：带 is_send（推荐）
-[
-  {
-    "time": "2026-05-25 10:30:00",
-    "is_send": true,
-    "sender": "我",
-    "content": "在干嘛呢"
-  }
-]
-
-// 格式二：仅有 sender 时，导入后会请你确认身份
-{
-  "chat": "联系人姓名",
-  "messages": [
-    {
-      "timestamp": 1777610400,
-      "sender": "Alice",
-      "type": "text",
-      "content": "想你了"
-    }
-  ]
-}
-```
-
-## 项目结构
-
-```
-emotionaldamage/
-├── index.html            # 入口 HTML
-├── package.json
-├── vite.config.js
-├── src/
-│   ├── main.js           # 入口文件
-│   ├── parser.js         # 聊天记录解析器（多格式支持）
-│   ├── analyzer.js       # 暧昧探测 & 关系画像分析引擎
-│   ├── cardRenderer.js   # 分享卡片渲染器
-│   ├── ui.js             # UI 层（步骤切换、DOM 渲染、事件绑定）
-│   ├── aiChat.js         # AI 情感顾问（OpenRouter API）
-│   └── styles.css        # 全局样式
-└── dist/                 # 构建产物
-```
+- **会上传**：截断后的聊天正文（最近约 400 条 / 6 万字上限）+ 星座/MBTI + 评测指令 → OpenRouter / 上游模型  
+- **不会**：本项目无自有后端；Key 只存在浏览器 `localStorage`  
+- 不要再假设「纯本地、聊天绝不上传」——评测路径必然联网
 
 ## 技术栈
 
-- **构建工具**: Vite 8
-- **运行时**: Vanilla JavaScript (ES Modules)
-- **卡片导出**: html2canvas
-- **AI 接口**: OpenRouter API（需 API Key；默认 `openrouter/free`，可选 GPT-4o-mini）
-- **样式**: 纯 CSS（自定义属性、Flexbox、动画）
+- Vite 8 + Vanilla JS
+- 解析：`parser.js`（JSON / TXT / HTML）
+- 评测：`llmEval.js` → OpenRouter（默认 `openai/gpt-4o-mini`）
+- 卡片：`html2canvas`
 
-## 隐私声明
+## 目录
 
-- **本地分析**：解析、评分、分享卡导出均在浏览器完成，不会把完整聊天记录上传到本项目服务器（本项目无后端）
-- **可选 AI**：若使用 AI 顾问，会将分析摘要与若干条脱敏语录发送到 OpenRouter；昵称以「你 / TA」代替
-- API Key 仅保存在浏览器 `localStorage`
+```
+src/
+  apiGate.js        # API 门禁
+  parser.js         # 聊天文件解析
+  profileOptions.js # 星座 / MBTI 选项
+  llmEval.js        # 截断 + Prompt + LLM JSON
+  ui.js             # 步骤与渲染
+  cardRenderer.js   # 分享卡
+  styles.css
+plan.md / agent.md  # 改造计划与模块规格
+```
 
 ## License
 
-ISC
+ISC（应用代码）。情圣相关 Prompt 改编需保留其 MIT 署名，见 `llmEval.js` 文件头。

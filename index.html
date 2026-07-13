@@ -18,11 +18,25 @@
         <div class="brand">
           <div class="brand-icon">🔑</div>
           <h1 class="brand-title">Emotional Damage</h1>
-          <p class="brand-subtitle">先连接 OpenRouter，再上传聊天做 LLM 评测</p>
+          <p class="brand-subtitle">先连接 LLM（OpenRouter 或智谱），再上传聊天做评测</p>
         </div>
 
         <div class="api-gate-card">
-          <label class="api-gate-label" for="apiKeyInput">OpenRouter API Key</label>
+          <label class="api-gate-label" for="apiProviderSelect">供应商</label>
+          <div class="api-provider-row" role="group" aria-label="选择供应商">
+            <button type="button" class="api-provider-btn active" data-provider="openrouter" id="providerBtnOpenrouter">
+              OpenRouter
+            </button>
+            <button type="button" class="api-provider-btn" data-provider="zhipu" id="providerBtnZhipu">
+              智谱 GLM
+            </button>
+          </div>
+          <input type="hidden" id="apiProviderSelect" value="openrouter" />
+
+          <label class="api-gate-label" for="apiModelSelect">模型</label>
+          <select id="apiModelSelect" class="api-gate-select"></select>
+
+          <label class="api-gate-label" for="apiKeyInput" id="apiKeyLabel">OpenRouter API Key</label>
           <input
             id="apiKeyInput"
             class="api-gate-input"
@@ -30,10 +44,8 @@
             autocomplete="off"
             placeholder="sk-or-v1-..."
           />
-          <p class="api-gate-hint">
-            Key 仅保存在本机浏览器。评测阶段会把截断后的聊天发送到 OpenRouter。
-            获取 Key：
-            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">openrouter.ai/keys</a>
+          <p class="api-gate-hint" id="apiGateHint">
+            Key 仅保存在本机浏览器（明文）。建议设置额度封顶。聊天会发到所选供应商。
           </p>
           <button class="btn btn-primary" id="btnConnectApi" type="button">连接并进入</button>
           <button class="btn btn-secondary" id="btnUseSavedKey" type="button" hidden>使用已保存的 Key 进入</button>
@@ -135,7 +147,7 @@
             <pre><code>常见原因：
 · 文件不是聊天导出（空文件 / 只有图片说明）
 · HTML 结构过于少见，可改导出为 TXT 再试
-· 双方都是昵称时，开始后会让你选「哪个是我」
+· 双方都是昵称时，或 HTML 导出，开始后会让你选「哪个是我」
 
 可识别示例（TXT）：
 [小鹿] 2026-05-25 10:30:00  想你了
@@ -154,7 +166,7 @@
       <div class="identify-container">
         <div class="brand-icon">👤</div>
         <h2 class="identify-title">请选择：哪个是你？</h2>
-        <p class="identify-hint">文件里没有「是否本人发送」标记，需要你确认后才能正确区分双方。</p>
+        <p class="identify-hint" id="identifyHint">文件里没有「是否本人发送」标记，需要你确认后才能正确区分双方。HTML 导出会一律要求确认，避免把「我/TA」标反。</p>
         <div class="identify-options" id="identifyOptions"></div>
         <button class="btn btn-ghost" id="btnIdentifyBack">← 返回</button>
       </div>
@@ -169,6 +181,7 @@
           <div class="loading-bar-fill" id="loadingBar"></div>
         </div>
         <p class="loading-status" id="loadingStatus">准备请求模型…</p>
+        <button class="btn btn-ghost" id="btnCancelEval" type="button">取消评测</button>
       </div>
     </section>
 

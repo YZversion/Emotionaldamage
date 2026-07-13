@@ -1,8 +1,8 @@
 # Emotional Damage — LLM 评测主流程改造 Plan
 
-> 状态：规划中（文档先行，业务代码按 Phase 执行）  
+> 状态：Phase 1–6 主线已完成  
 > 决策锁定：聊天 **尽量全文截断**；体验 **LLM 报告为主 + 保留分享卡**  
-> 补充：导入支持 **JSON / 微信常见纯文本 TXT / HTML 导出**（`parseChatFile`）；导入页以 **推荐导出三步 + 拖拽上传** 为主路径（微信无法批量复制）
+> 补充：导入支持 **JSON / TXT / HTML**；导入页 **推荐导出三步 + 拖拽**；Prompt 蒸馏自情圣 skill（MIT）
 
 ---
 
@@ -22,8 +22,8 @@
 | LLM 打分 + 深度评测 + 建议 | keep | 主产出，结构化 JSON |
 | 尽量全文截断发给 LLM | keep | 按时间排序后截到 N 条或 M 字 |
 | 分享卡展示 LLM 结论 | keep | 卡片字段改绑 LLM 结果 |
-| 本地词典引擎主打分 | delete | 退出主路径（可暂留文件，不再驱动 UI） |
-| 结果页旁路闲聊 AI | delete/relax | 首版不做；报告即主交付 |
+| 本地词典引擎主打分 | delete | 已删除 analyzer.js |
+| 结果页旁路闲聊 AI | delete | 已删除 aiChat.js |
 
 ### 默认参数（实现时写死常量，后续再可配置）
 
@@ -54,10 +54,9 @@
 
 - [x] 本文件 `plan.md` 落地并与产品决策一致（1A 全文截断 / 2B LLM+卡片）
 - [x] `agent.md` 改为「LLM 评测模块」规格（输入/截断/Prompt/JSON/隐私）
-- [ ] README 隐私声明改为：评测会上传截断后的聊天内容到 OpenRouter（待 Phase 6 与代码同步改文案亦可，但规格先写清）
+- [x] README 隐私声明改为：评测会上传截断后的聊天内容到 OpenRouter
 
-**完成标准：** 任何人只读 `plan.md` + `agent.md` 就能实现，无需再猜产品边界。  
-**Phase 0 文档部分已完成；README 文案改动并入 Phase 6。**
+**Phase 0 完成。**
 
 ---
 
@@ -134,13 +133,12 @@
 
 ### Phase 6 — 删除与清理（词典退出主路径）
 
-- [ ] `analyze()` / 词典信号 **不再** 作为主评分来源；从 `ui.js` 主流程断开
-- [ ] 决定：`analyzer.js` 删除 **或** 标记 deprecated 仅作可选辅证（首版推荐：**断开引用即可**，文件可删可留）
-- [ ] 同步 `README.md` / `architecture.md` / 上传区文案：明确「会上传截断聊天到 OpenRouter」
-- [ ] 删除死代码：旧 AI 闲聊若已无入口则移除；假 loading 残留清理
-- [ ] `npm run build` 通过
+- [x] 词典打分已退出主路径
+- [x] 已删除 `src/analyzer.js`、`src/aiChat.js` 及对应死样式
+- [x] 同步 `README.md` / `architecture.md` / 门禁与上传文案
+- [x] `npm run build` 通过
 
-**完成标准：** 主路径零依赖词典打分；文档与行为一致；无误导「纯本地不上传」。
+**Phase 6 已完成。Phase 1–6 主线闭环。**
 
 ---
 
@@ -167,9 +165,5 @@
 
 ## 6. 执行顺序（给实现者）
 
-1. Phase 0（本文与 `agent.md`）← 当前  
-2. Phase 1 → 2 → 3（可先用简易结果 JSON 打日志）  
-3. Phase 4 → 5  
-4. Phase 6 收尾  
-
-**若只能先做一处：** Phase 1 + Phase 3 的最小闭环（门禁 → 截断调用 → console/简陋页出 JSON），再补表单与卡片。
+1. Phase 0–6：**已完成**  
+2. 后续可选：模型切换 UI、流式输出、更细的导出工具教程截图

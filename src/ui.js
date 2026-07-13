@@ -10,6 +10,11 @@ import {
   markDisconnected,
   validateApiKey,
   reconnectWithStoredKey,
+  getStoredProvider,
+  setStoredProvider,
+  getProviderConfig,
+  getStoredModel,
+  setStoredModel,
 } from './apiGate.js';
 import { ZODIAC_OPTIONS, MBTI_OPTIONS, fillSelect } from './profileOptions.js';
 import { runLlmEval, MAX_MESSAGES } from './llmEval.js';
@@ -25,12 +30,31 @@ let evalDraft = {
   profile: null,
 };
 
-// Phase 3 将读取：已通过校验、可送 LLM 的输入包
 /** @type {null | { apiKey: string, messages: array, contactName: string, self: object, other: object }} */
 let readyEvalInput = null;
 
-export function getReadyEvalInput() {
-  return readyEvalInput;
+/** 评测进行中：防重入 + 可取消 */
+let isEvaluating = false;
+/** @type {AbortController | null} */
+let evalAbortController = null;
+
+function cancelEvalRequest() {
+  if (evalAbortController) {
+    evalAbortController.abort();
+    evalAbortController = null;
+  }
+}
+
+function setEvaluating(active) {
+  isEvaluating = Boolean(active);
+  if (!isEvaluating) {
+    evalAbortController = null;
+  }
+  if (dom.btnStartEval) {
+    // updateStartEvalHint 会按草稿状态决定是否可用；评测中强制禁用
+    if (isEvaluating) dom.btnStartEval.disabled = true;
+    else updateStartEvalHint();
+  }
 }
 
 // ====== DOM refs ======
@@ -49,6 +73,12 @@ const dom = {
   stepResult: $('step-result'),
   stepCard: $('step-card'),
   apiKeyInput: $('apiKeyInput'),
+  apiKeyLabel: $('apiKeyLabel'),
+  apiGateHint: $('apiGateHint'),
+  apiProviderSelect: $('apiProviderSelect'),
+  apiModelSelect: $('apiModelSelect'),
+  providerBtnOpenrouter: $('providerBtnOpenrouter'),
+  providerBtnZhipu: $('providerBtnZhipu'),
   btnConnectApi: $('btnConnectApi'),
   btnUseSavedKey: $('btnUseSavedKey'),
   apiGateStatus: $('apiGateStatus'),
@@ -69,6 +99,7 @@ const dom = {
   btnIdentifyBack: $('btnIdentifyBack'),
   loadingBar: $('loadingBar'),
   loadingStatus: $('loadingStatus'),
+  btnCancelEval: $('btnCancelEval'),
   btnBack: $('btnBack'),
   btnShowCard: $('btnShowCard'),
   btnSendToThem: $('btnSendToThem'),
@@ -93,14 +124,15 @@ const dom = {
 
 function requireApiOrGate() {
   if (isApiConnected()) return true;
-  showToast('请先连接 OpenRouter API Key');
+  showToast('请先连接 API Key');
   showApiGate();
   return false;
 }
 
 function maskKey(key) {
   if (!key || key.length < 12) return '已连接';
-  return `已连接 · …${key.slice(-4)}`;
+  const cfg = getProviderConfig();
+  return `${cfg.label} · …${key.slice(-4)}`;
 }
 
 function setApiStatus(message, type = '') {
@@ -109,15 +141,42 @@ function setApiStatus(message, type = '') {
   dom.apiGateStatus.className = 'api-gate-status' + (type ? ` ${type}` : '');
 }
 
+function syncProviderUi(provider = getStoredProvider()) {
+  const id = setStoredProvider(provider);
+  const cfg = getProviderConfig(id);
+
+  if (dom.apiProviderSelect) dom.apiProviderSelect.value = id;
+  document.querySelectorAll('.api-provider-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.provider === id);
+  });
+
+  if (dom.apiKeyLabel) dom.apiKeyLabel.textContent = cfg.keyLabel;
+  if (dom.apiKeyInput) {
+    dom.apiKeyInput.placeholder = cfg.placeholder;
+    dom.apiKeyInput.value = getStoredApiKey(id);
+  }
+  if (dom.apiGateHint) dom.apiGateHint.innerHTML = cfg.hintHtml;
+
+  if (dom.apiModelSelect) {
+    const current = getStoredModel(id);
+    dom.apiModelSelect.replaceChildren();
+    cfg.models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.label;
+      if (m.id === current) opt.selected = true;
+      dom.apiModelSelect.appendChild(opt);
+    });
+  }
+
+  if (dom.btnUseSavedKey) {
+    dom.btnUseSavedKey.hidden = !getStoredApiKey(id);
+  }
+}
+
 function showApiGate() {
   markDisconnected();
-  const saved = getStoredApiKey();
-  if (dom.apiKeyInput) {
-    dom.apiKeyInput.value = saved;
-  }
-  if (dom.btnUseSavedKey) {
-    dom.btnUseSavedKey.hidden = !saved;
-  }
+  syncProviderUi(getStoredProvider());
   setApiStatus('');
   showStep('api');
 }
@@ -131,7 +190,9 @@ async function enterAfterConnect() {
 }
 
 async function handleConnectApi() {
+  const provider = getStoredProvider();
   const key = dom.apiKeyInput?.value?.trim() || '';
+  const model = dom.apiModelSelect?.value || getStoredModel(provider);
   if (!dom.btnConnectApi) return;
 
   dom.btnConnectApi.disabled = true;
@@ -139,7 +200,7 @@ async function handleConnectApi() {
   if (dom.btnUseSavedKey) dom.btnUseSavedKey.disabled = true;
   setApiStatus('正在校验 API Key…');
 
-  const result = await validateApiKey(key);
+  const result = await validateApiKey(key, { provider, model });
 
   dom.btnConnectApi.disabled = false;
   dom.btnConnectApi.textContent = '连接并进入';
@@ -150,12 +211,17 @@ async function handleConnectApi() {
     return;
   }
 
-  setApiStatus('连接成功', 'ok');
+  setStoredModel(model, provider);
+  setApiStatus(result.warning ? `已连接（注意：${result.warning}）` : '连接成功', 'ok');
   await enterAfterConnect();
 }
 
 async function handleUseSavedKey() {
   if (!dom.btnUseSavedKey) return;
+  const provider = getStoredProvider();
+  const model = dom.apiModelSelect?.value || getStoredModel(provider);
+  setStoredModel(model, provider);
+
   dom.btnUseSavedKey.disabled = true;
   dom.btnConnectApi.disabled = true;
   setApiStatus('正在用已保存的 Key 校验…');
@@ -167,12 +233,12 @@ async function handleUseSavedKey() {
 
   if (!result.ok) {
     setApiStatus(result.message || '已保存的 Key 无效，请重新输入', 'error');
-    if (dom.btnUseSavedKey) dom.btnUseSavedKey.hidden = !getStoredApiKey();
+    if (dom.btnUseSavedKey) dom.btnUseSavedKey.hidden = !getStoredApiKey(provider);
     return;
   }
 
-  if (dom.apiKeyInput) dom.apiKeyInput.value = getStoredApiKey();
-  setApiStatus('连接成功', 'ok');
+  if (dom.apiKeyInput) dom.apiKeyInput.value = getStoredApiKey(provider);
+  setApiStatus(result.warning ? `已连接（注意：${result.warning}）` : '连接成功', 'ok');
   await enterAfterConnect();
 }
 
@@ -243,9 +309,9 @@ function updateStartEvalHint() {
   if (!isApiConnected()) missing.push('API 连接');
 
   if (missing.length === 0) {
-    dom.startEvalHint.textContent = '可以开始评测';
+    dom.startEvalHint.textContent = isEvaluating ? '评测进行中…' : '可以开始评测';
     dom.startEvalHint.classList.add('ready');
-    if (dom.btnStartEval) dom.btnStartEval.disabled = false;
+    if (dom.btnStartEval) dom.btnStartEval.disabled = isEvaluating;
   } else {
     dom.startEvalHint.textContent = `还差：${missing.join('、')}`;
     dom.startEvalHint.classList.remove('ready');
@@ -277,6 +343,12 @@ function showStep(name) {
   if (name !== 'api' && !isApiConnected()) {
     showApiGate();
     return;
+  }
+
+  // 离开 loading 时中止进行中的评测请求，避免悬挂双扣费
+  if (name !== 'loading' && isEvaluating) {
+    cancelEvalRequest();
+    setEvaluating(false);
   }
 
   document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
@@ -423,8 +495,11 @@ function showIdentifyStep(parsed) {
  */
 function proceedToEval(messages, contactName) {
   const profile = evalDraft.profile || readProfileFromForm();
+  const provider = getStoredProvider();
   readyEvalInput = {
-    apiKey: getStoredApiKey(),
+    apiKey: getStoredApiKey(provider),
+    provider,
+    model: getStoredModel(provider),
     messages,
     contactName,
     self: { ...profile.self },
@@ -434,6 +509,15 @@ function proceedToEval(messages, contactName) {
 }
 
 async function runLlmAnalysis(input) {
+  if (isEvaluating) {
+    showToast('评测进行中，请稍候或点「取消评测」');
+    return;
+  }
+
+  evalAbortController = new AbortController();
+  const signal = evalAbortController.signal;
+  setEvaluating(true);
+
   showStep('loading');
   if (dom.loadingBar) dom.loadingBar.style.width = '15%';
   if (dom.loadingStatus) {
@@ -441,7 +525,7 @@ async function runLlmAnalysis(input) {
   }
 
   try {
-    const result = await runLlmEval(input, msg => {
+    const result = await runLlmEval({ ...input, signal }, msg => {
       if (dom.loadingStatus) dom.loadingStatus.textContent = msg;
       if (dom.loadingBar) {
         if (msg.includes('截断')) dom.loadingBar.style.width = '30%';
@@ -450,13 +534,25 @@ async function runLlmAnalysis(input) {
         else if (msg.includes('整理')) dom.loadingBar.style.width = '90%';
       }
     });
+    if (signal.aborted) return;
     if (dom.loadingBar) dom.loadingBar.style.width = '100%';
     if (dom.loadingStatus) dom.loadingStatus.textContent = '完成';
+    setEvaluating(false);
     renderResult(result);
   } catch (err) {
+    const aborted =
+      signal.aborted ||
+      err?.name === 'AbortError' ||
+      /aborted|abort/i.test(String(err?.message || ''));
+    setEvaluating(false);
+    if (aborted) {
+      if (dom.loadingStatus) dom.loadingStatus.textContent = '已取消';
+      showToast('已取消评测');
+      showStep('import');
+      return;
+    }
     alert('❌ ' + (err.message || '评测失败'));
     showStep('import');
-    updateStartEvalHint();
   }
 }
 
@@ -478,6 +574,10 @@ function loadChatIntoDraft(rawText, sourceLabel) {
 }
 
 function handleStartEval() {
+  if (isEvaluating) {
+    showToast('评测进行中，请稍候或点「取消评测」');
+    return;
+  }
   if (!requireApiOrGate()) return;
 
   const profile = readProfileFromForm();
@@ -637,6 +737,19 @@ export function initUI() {
   if (dom.btnUseSavedKey) {
     dom.btnUseSavedKey.addEventListener('click', () => handleUseSavedKey());
   }
+  document.querySelectorAll('.api-provider-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const provider = btn.dataset.provider;
+      if (!provider) return;
+      syncProviderUi(provider);
+      setApiStatus('');
+    });
+  });
+  if (dom.apiModelSelect) {
+    dom.apiModelSelect.addEventListener('change', () => {
+      setStoredModel(dom.apiModelSelect.value, getStoredProvider());
+    });
+  }
   if (dom.apiKeyInput) {
     dom.apiKeyInput.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
@@ -701,6 +814,17 @@ export function initUI() {
 
   if (dom.btnStartEval) {
     dom.btnStartEval.addEventListener('click', handleStartEval);
+  }
+
+  if (dom.btnCancelEval) {
+    dom.btnCancelEval.addEventListener('click', () => {
+      if (!isEvaluating) {
+        showStep('import');
+        return;
+      }
+      cancelEvalRequest();
+      // AbortError 由 runLlmAnalysis catch 处理回跳
+    });
   }
 
   if (dom.btnIdentifyBack) {

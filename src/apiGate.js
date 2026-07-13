@@ -1,32 +1,35 @@
 /**
- * OpenRouter API 门禁
- * Phase 1：未校验通过的 Key 不能进入上传/评测
+ * API 门禁：按供应商校验 Key
  */
 
-const STORAGE_KEY = 'ed_openrouter_api_key';
-const LEGACY_STORAGE_KEY = 'aiChatApiKey';
-const MODELS_URL = 'https://openrouter.ai/api/v1/models';
+import {
+  PROVIDER_OPENROUTER,
+  PROVIDER_ZHIPU,
+  getStoredProvider,
+  setStoredProvider,
+  getProviderConfig,
+  getStoredApiKey,
+  setStoredApiKey,
+  clearStoredApiKey as clearProviderKey,
+  getStoredModel,
+  setStoredModel,
+  looksLikeProviderKey,
+} from './providers.js';
+
+export {
+  getStoredProvider,
+  setStoredProvider,
+  getProviderConfig,
+  getStoredApiKey,
+  setStoredApiKey,
+  getStoredModel,
+  setStoredModel,
+};
 
 let sessionConnected = false;
 
-export function getStoredApiKey() {
-  return (
-    localStorage.getItem(STORAGE_KEY) ||
-    localStorage.getItem(LEGACY_STORAGE_KEY) ||
-    ''
-  ).trim();
-}
-
-export function setStoredApiKey(key) {
-  const value = String(key || '').trim();
-  localStorage.setItem(STORAGE_KEY, value);
-  // 兼容旧模块读取
-  localStorage.setItem(LEGACY_STORAGE_KEY, value);
-}
-
 export function clearStoredApiKey() {
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem(LEGACY_STORAGE_KEY);
+  clearProviderKey(getStoredProvider());
   sessionConnected = false;
 }
 
@@ -38,70 +41,145 @@ export function markDisconnected() {
   sessionConnected = false;
 }
 
-/**
- * 轻量校验：拉取 models 列表，不上传聊天内容
- * @param {string} apiKey
- * @returns {Promise<{ ok: true } | { ok: false, message: string }>}
- */
-export async function validateApiKey(apiKey) {
-  const key = String(apiKey || '').trim();
-  if (!key) {
-    return { ok: false, message: '请输入 OpenRouter API Key' };
-  }
-
+async function readErrorDetail(response) {
   try {
-    const response = await fetch(MODELS_URL, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : '',
-        'X-Title': 'Emotional Damage',
-      },
-    });
+    const body = await response.json();
+    return body.error?.message || body.message || body.msg || '';
+  } catch {
+    return response.text().catch(() => '');
+  }
+}
 
-    if (response.ok) {
-      sessionConnected = true;
-      setStoredApiKey(key);
-      return { ok: true };
-    }
+async function validateOpenRouterKey(key) {
+  const cfg = getProviderConfig(PROVIDER_OPENROUTER);
+  const response = await fetch(cfg.validateUrl, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : '',
+      'X-Title': 'Emotional Damage',
+    },
+  });
 
-    let detail = '';
-    try {
-      const body = await response.json();
-      detail = body.error?.message || body.message || '';
-    } catch {
-      detail = await response.text().catch(() => '');
-    }
+  if (response.ok) return { ok: true };
 
-    sessionConnected = false;
-    if (response.status === 401 || response.status === 403) {
-      return { ok: false, message: 'API Key 无效或无权限，请到 openrouter.ai 检查 Key' };
-    }
+  const detail = await readErrorDetail(response);
+  if (response.status === 401 || response.status === 403) {
     return {
       ok: false,
       message: detail
-        ? `连接失败 (${response.status}): ${detail}`
-        : `连接失败 (HTTP ${response.status})`,
+        ? `API Key 无效或无权限：${detail}`
+        : 'API Key 无效或无权限，请到 openrouter.ai/keys 检查',
     };
-  } catch (err) {
-    sessionConnected = false;
+  }
+  return {
+    ok: false,
+    message: detail
+      ? `连接失败 (${response.status}): ${detail}`
+      : `连接失败 (HTTP ${response.status})`,
+  };
+}
+
+/** 发一条极短请求验 Key（智谱无公开 /key） */
+async function validateZhipuKey(key, model) {
+  const cfg = getProviderConfig(PROVIDER_ZHIPU);
+  const response = await fetch(cfg.validateUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: model || cfg.defaultModel,
+      messages: [{ role: 'user', content: 'hi' }],
+      max_tokens: 1,
+      temperature: 0.1,
+      stream: false,
+    }),
+  });
+
+  if (response.ok) return { ok: true };
+
+  const detail = await readErrorDetail(response);
+  if (response.status === 401 || response.status === 403) {
     return {
       ok: false,
-      message: err.message?.includes('Failed to fetch')
-        ? '网络错误，请检查网络或是否被浏览器拦截'
-        : `网络错误: ${err.message}`,
+      message: detail
+        ? `智谱 Key 无效或无权限：${detail}`
+        : '智谱 Key 无效或无权限，请到 bigmodel.cn 检查',
+    };
+  }
+  // 余额不足等也算 Key 通路通了，允许进入（评测时再报）
+  if (response.status === 429 || /余额|quota|insufficient|429/i.test(detail)) {
+    return { ok: true, warning: detail || '额度可能不足，评测时再确认' };
+  }
+  return {
+    ok: false,
+    message: detail
+      ? `连接失败 (${response.status}): ${detail}`
+      : `连接失败 (HTTP ${response.status})。若提示 CORS/网络，请用 npm run dev（经本地代理）。`,
+  };
+}
+
+/**
+ * @param {string} apiKey
+ * @param {{ provider?: string, model?: string }} [opts]
+ */
+export async function validateApiKey(apiKey, opts = {}) {
+  const provider = setStoredProvider(opts.provider || getStoredProvider());
+  const cfg = getProviderConfig(provider);
+  const key = String(apiKey || '').trim();
+  const model = opts.model || getStoredModel(provider);
+
+  if (!key) {
+    return { ok: false, message: `请输入 ${cfg.keyLabel}` };
+  }
+  if (!looksLikeProviderKey(key, provider)) {
+    if (provider === PROVIDER_OPENROUTER) {
+      return {
+        ok: false,
+        message: '看起来不像 OpenRouter Key（一般以 sk-or- 开头）。智谱 Key 请先切换到「智谱 GLM」。',
+      };
+    }
+    return {
+      ok: false,
+      message: '看起来不像智谱 Key（常见格式 id.secret）。OpenRouter Key 请先切换到 OpenRouter。',
+    };
+  }
+
+  try {
+    const result =
+      provider === PROVIDER_ZHIPU
+        ? await validateZhipuKey(key, model)
+        : await validateOpenRouterKey(key);
+
+    if (!result.ok) {
+      sessionConnected = false;
+      return result;
+    }
+
+    sessionConnected = true;
+    setStoredApiKey(key, provider);
+    setStoredModel(model, provider);
+    return result;
+  } catch (err) {
+    sessionConnected = false;
+    const msg = String(err.message || '');
+    return {
+      ok: false,
+      message: /Failed to fetch|NetworkError|CORS/i.test(msg)
+        ? '网络错误或被 CORS 拦截。智谱请用 npm run dev（走本地代理）；不要直接用静态文件打开。'
+        : `网络错误: ${msg}`,
     };
   }
 }
 
-/**
- * 用本地已存 Key 再校验一次；失败则清连接态（不自动删 Key，方便用户改）
- */
 export async function reconnectWithStoredKey() {
-  const key = getStoredApiKey();
+  const provider = getStoredProvider();
+  const key = getStoredApiKey(provider);
   if (!key) {
     sessionConnected = false;
     return { ok: false, message: '尚未保存 API Key' };
   }
-  return validateApiKey(key);
+  return validateApiKey(key, { provider, model: getStoredModel(provider) });
 }

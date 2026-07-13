@@ -5,7 +5,13 @@
  * 适配为：一次请求 → 结构化 JSON 报告（非多轮僚机对话）
  */
 
-const API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+import {
+  PROVIDER_OPENROUTER,
+  getProviderConfig,
+  getStoredProvider,
+  getStoredModel,
+} from './providers.js';
+
 export const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 export const MAX_MESSAGES = 400;
 export const MAX_CHARS = 60000;
@@ -209,9 +215,12 @@ export function normalizeEvalResult(parsed, context = {}) {
   const advice = (Array.isArray(parsed.advice) ? parsed.advice : [])
     .map(a => String(a).trim())
     .filter(Boolean);
-  const highlights = (Array.isArray(parsed.highlights) ? parsed.highlights : [])
+
+  const chatText = String(context.chatText || '');
+  const rawHighlights = (Array.isArray(parsed.highlights) ? parsed.highlights : [])
     .map(h => String(h).trim())
     .filter(Boolean);
+  const highlights = filterHighlightsAgainstChat(rawHighlights, chatText);
 
   const summary = String(parsed.summary || '').trim() || '暂无总评';
   const deepAnalysis = String(parsed.deepAnalysis || '').trim() || '暂无深度评测';
@@ -228,7 +237,7 @@ export function normalizeEvalResult(parsed, context = {}) {
     dimensions,
     deepAnalysis,
     advice: advice.length ? advice : ['先观察对方最近三条回复的投入度，再决定要不要升温。'],
-    highlights: highlights.length ? highlights : ['（模型未给出可核对高光，请结合聊天自行复核）'],
+    highlights,
     verdict,
     myName: context.myName || '我',
     theirName: context.theirName || 'TA',
@@ -243,36 +252,107 @@ export function normalizeEvalResult(parsed, context = {}) {
   };
 }
 
-async function callChatCompletions({ apiKey, model, messages }) {
-  const response = await fetch(API_ENDPOINT, {
+/** 高光必须能在截断正文中找到（忽略空白差异）；否则丢弃 */
+export function filterHighlightsAgainstChat(highlights, chatText) {
+  const haystack = normalizeForMatch(chatText);
+  const kept = [];
+  for (const h of highlights) {
+    const needle = normalizeForMatch(h);
+    if (needle.length < 2) continue;
+    if (haystack.includes(needle)) {
+      kept.push(h);
+      continue;
+    }
+    // 允许高光是正文中某句的节选：去掉「我:/TA:」前缀后再比
+    const stripped = needle.replace(/^(我|ta)\s*[:：]\s*/i, '');
+    if (stripped.length >= 4 && haystack.includes(stripped)) {
+      kept.push(h);
+    }
+  }
+  if (kept.length > 0) return kept;
+  return ['（高光未通过原文核对，已隐藏疑似编造内容）'];
+}
+
+function normalizeForMatch(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[“”"']/g, '');
+}
+
+async function callChatCompletions({
+  apiKey,
+  model,
+  messages,
+  signal,
+  provider = PROVIDER_OPENROUTER,
+  jsonMode = true,
+}) {
+  const cfg = getProviderConfig(provider);
+  const body = {
+    model,
+    messages,
+    temperature: 0.4,
+    stream: false,
+  };
+  if (jsonMode) {
+    body.response_format = { type: 'json_object' };
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+  };
+  if (provider === PROVIDER_OPENROUTER) {
+    headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : '';
+    headers['X-Title'] = 'Emotional Damage';
+  }
+
+  const response = await fetch(cfg.chatUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : '',
-      'X-Title': 'Emotional Damage',
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.4,
-      stream: false,
-    }),
+    headers,
+    body: JSON.stringify(body),
+    signal,
   });
 
   if (!response.ok) {
     let detail = '';
     try {
-      const body = await response.json();
-      detail = body.error?.message || body.message || '';
+      const errBody = await response.json();
+      detail = errBody.error?.message || errBody.message || errBody.msg || '';
     } catch {
       detail = await response.text().catch(() => '');
     }
     if (response.status === 401 || response.status === 403) {
-      throw new Error('API Key 无效或无权限，请返回更换 Key');
+      throw new Error(
+        detail
+          ? `API Key 无效或无权限：${detail}`
+          : 'API Key 无效或无权限，请返回更换 Key'
+      );
+    }
+    if (response.status === 402) {
+      throw new Error(
+        detail
+          ? `额度不足：${detail}`
+          : '额度不足（402），请检查账户余额后重试'
+      );
     }
     if (response.status === 429) {
-      throw new Error('请求过于频繁（429），请稍后再试');
+      throw new Error(detail || '请求过于频繁（429），请稍后再试');
+    }
+    // 部分模型不支持 response_format：降级重试一次
+    if (
+      jsonMode &&
+      (response.status === 400 || /response_format|json_object|json mode|json_schema/i.test(detail))
+    ) {
+      return callChatCompletions({
+        apiKey,
+        model,
+        messages,
+        signal,
+        provider,
+        jsonMode: false,
+      });
     }
     throw new Error(
       detail ? `评测失败 (${response.status}): ${detail}` : `评测失败 (HTTP ${response.status})`
@@ -287,19 +367,19 @@ async function callChatCompletions({ apiKey, model, messages }) {
 
 /**
  * @param {object} input
- * @param {string} input.apiKey
- * @param {array} input.messages
- * @param {string} input.contactName
- * @param {{zodiac:string,mbti:string}} input.self
- * @param {{zodiac:string,mbti:string}} input.other
+ * @param {AbortSignal} [input.signal]
+ * @param {string} [input.provider]
  * @param {string} [input.model]
- * @param {(msg:string)=>void} [onStatus]
  */
 export async function runLlmEval(input, onStatus) {
   const apiKey = String(input.apiKey || '').trim();
   if (!apiKey) throw new Error('缺少 API Key');
 
   const status = typeof onStatus === 'function' ? onStatus : () => {};
+  const signal = input.signal;
+  const provider = input.provider || getStoredProvider();
+  const model = input.model || getStoredModel(provider) || getProviderConfig(provider).defaultModel;
+
   status('正在截断聊天记录…');
 
   const trunc = truncateMessages(input.messages);
@@ -308,7 +388,6 @@ export async function runLlmEval(input, onStatus) {
   }
 
   const chatText = trunc.messages.map(formatMessageLine).join('\n');
-  const model = input.model || DEFAULT_MODEL;
 
   const system = buildSystemPrompt();
   const user = buildUserPrompt(input, chatText, {
@@ -322,18 +401,13 @@ export async function runLlmEval(input, onStatus) {
     { role: 'user', content: user },
   ];
 
-  status('正在请求模型生成评测…');
-  let content;
-  try {
-    content = await callChatCompletions({ apiKey, model, messages });
-  } catch (err) {
-    throw err;
-  }
+  status(`正在请求 ${getProviderConfig(provider).label}（${model}）…`);
+  let content = await callChatCompletions({ apiKey, model, messages, signal, provider });
 
   let parsed;
   try {
     parsed = extractJsonObject(content);
-  } catch (err) {
+  } catch {
     status('JSON 解析失败，正在重试一次…');
     const repairMessages = [
       { role: 'system', content: '你只输出合法 JSON 对象，不要 Markdown，不要解释。' },
@@ -342,7 +416,14 @@ export async function runLlmEval(input, onStatus) {
         content: `下面这段无法解析为 JSON，请原样意图修正为合法 JSON 对象后只输出 JSON：\n\n${content}`,
       },
     ];
-    content = await callChatCompletions({ apiKey, model, messages: repairMessages });
+    content = await callChatCompletions({
+      apiKey,
+      model,
+      messages: repairMessages,
+      signal,
+      provider,
+      jsonMode: true,
+    });
     parsed = extractJsonObject(content);
   }
 
@@ -371,5 +452,6 @@ export async function runLlmEval(input, onStatus) {
       total: trunc.totalAvailable,
       truncated: trunc.truncated,
     },
+    chatText,
   });
 }

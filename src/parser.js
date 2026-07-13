@@ -158,7 +158,7 @@ export function parseChatText(rawText) {
 }
 
 /**
- * HTML：微信备份页 / WeChatMsg 等常见结构
+ * HTML：微信/工具导出页。选择器收紧；一律强制「选哪个是我」，不信任 class 启发式。
  */
 export function parseChatHtml(rawHtml) {
   const html = stripBom(String(rawHtml));
@@ -169,14 +169,13 @@ export function parseChatHtml(rawHtml) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const messages = [];
 
-  // 优先：带明确消息块的节点
+  // 避免过宽的 .message / .msg（易吞导航、侧栏）
   const itemSelectors = [
     '[class*="chat-item"]',
     '[class*="chat-message"]',
     '[class*="msg-item"]',
     '[class*="message-item"]',
-    '.message',
-    '.msg',
+    '[class*="bubble"][class*="content"]',
     'div[data-time]',
     'div[data-datetime]',
     'li[data-time]',
@@ -184,7 +183,7 @@ export function parseChatHtml(rawHtml) {
 
   let items = [];
   for (const sel of itemSelectors) {
-    const found = [...doc.querySelectorAll(sel)];
+    const found = [...doc.querySelectorAll(sel)].filter(isLikelyMessageNode);
     if (found.length >= 3) {
       items = found;
       break;
@@ -192,26 +191,30 @@ export function parseChatHtml(rawHtml) {
   }
 
   if (items.length === 0) {
-    // 宽松：含时间样式的块
-    items = [...doc.querySelectorAll('div, li, article, section')].filter(el => {
-      const t = el.querySelector?.('.time, .msg-time, .message-time, [class*="time"]');
-      const c = el.querySelector?.('.content, .text, .msg-content, .message-content, [class*="content"]');
+    items = [...doc.querySelectorAll('div, li')].filter(el => {
+      if (!isLikelyMessageNode(el)) return false;
+      const t = el.querySelector?.(
+        '.time, .msg-time, .message-time, .chat-time, [class*="msg-time"], [class*="message-time"]'
+      );
+      const c = el.querySelector?.(
+        '.content, .msg-content, .message-content, .chat-content, [class*="msg-content"], [class*="message-content"]'
+      );
       return Boolean(t && c);
     });
   }
 
   for (const el of items) {
-    // 跳过嵌套子消息块，避免重复
     if (items.some(other => other !== el && other.contains(el))) continue;
 
     const timeEl = el.querySelector(
-      '.time, .msg-time, .message-time, .chat-time, [class*="time"], time'
+      '.time, .msg-time, .message-time, .chat-time, [class*="msg-time"], [class*="message-time"], time'
     );
     const senderEl = el.querySelector(
-      '.nickname, .name, .sender, .username, .display-name, [class*="nickname"], [class*="sender"], [class*="name"]'
+      '.nickname, .sender, .username, .display-name, [class*="nickname"], [class*="sender"]'
     );
+    // 不用过宽的 [class*="name"] / [class*="text"]，减少侧栏误伤
     const contentEl = el.querySelector(
-      '.content, .text, .msg-content, .message-content, .chat-content, [class*="content"], [class*="text"]'
+      '.content, .msg-content, .message-content, .chat-content, [class*="msg-content"], [class*="message-content"]'
     );
 
     const timeAttr =
@@ -223,7 +226,6 @@ export function parseChatHtml(rawHtml) {
       '';
 
     let timeStr = timeAttr || (timeEl ? timeEl.textContent : '') || '';
-    // data-datetime="1698723845000-28800000" → 取前段毫秒
     const compound = String(timeStr).match(/^(\d{10,13})(-\d+)?$/);
     if (compound) {
       timeStr = compound[1];
@@ -234,42 +236,33 @@ export function parseChatHtml(rawHtml) {
     if (contentEl) {
       content = (contentEl.innerText || contentEl.textContent || '').trim();
     } else {
-      // 去掉时间/昵称节点后取剩余文本
       const clone = el.cloneNode(true);
-      clone.querySelectorAll('.time, .msg-time, .nickname, .name, .sender, img, video, audio, script, style')
+      clone
+        .querySelectorAll(
+          '.time, .msg-time, .message-time, .nickname, .sender, img, video, audio, script, style, nav, button'
+        )
         .forEach(n => n.remove());
       content = (clone.innerText || clone.textContent || '').trim();
     }
 
     content = content.replace(/\u200b/g, '').trim();
-    if (!content || isNonTextPlaceholder(content)) continue;
+    if (!content || content.length < 1 || isNonTextPlaceholder(content)) continue;
+    // 过长整块多半是容器误匹配
+    if (content.length > 2000) continue;
 
-    const className = `${el.className || ''} ${el.getAttribute('class') || ''}`.toLowerCase();
-    const isMeHint =
-      /\b(self|is-me|isme|is_me|send|myself|own|right|from-me|from_me)\b/.test(className) ||
-      el.classList?.contains?.('self') ||
-      sender === '我';
+    if (!sender) sender = '未知';
 
-    if (!sender) {
-      sender = isMeHint ? '我' : 'TA';
-    }
-
-    const raw = makeRawMessage(timeStr, sender, content);
-    if (isMeHint) {
-      raw.is_send = true;
-    } else if (/\b(other|left|receive|friend)\b/.test(className)) {
-      raw.is_send = false;
-    }
-    messages.push(raw);
+    // 不根据 class 猜测 is_send；HTML 路径统一强制身份确认
+    messages.push(makeRawMessage(timeStr, sender, content));
   }
 
-  // 仍无结果：按可见文本行用纯文本解析器兜底
   if (messages.length === 0) {
     const bodyText = doc.body?.innerText || doc.documentElement?.innerText || '';
     if (bodyText.trim().length > 20) {
-      return parseChatText(bodyText);
+      const textResult = parseChatText(bodyText);
+      return { ...textResult, needsSelfPick: true, sourceFormat: 'html-text-fallback' };
     }
-    throw new Error('未能从 HTML 中解析出消息。请确认是微信/工具导出的聊天 HTML');
+    throw new Error('未能从 HTML 中解析出消息。请改用 TXT 导出，或确认是聊天导出页');
   }
 
   const normalized = messages.map(msg => normalizeMessage(msg)).filter(Boolean);
@@ -281,7 +274,16 @@ export function parseChatHtml(rawHtml) {
     doc.querySelector('title')?.textContent?.trim() ||
     doc.querySelector('h1, h2, .title, .chat-title')?.textContent?.trim() ||
     '';
-  return finalizeParse(normalized, title, messages.length);
+  return finalizeParse(normalized, title, messages.length, { forceSelfPick: true, sourceFormat: 'html' });
+}
+
+function isLikelyMessageNode(el) {
+  if (!el || el.closest?.('nav, header, footer, script, style, noscript')) return false;
+  const tag = (el.tagName || '').toLowerCase();
+  if (tag === 'nav' || tag === 'button' || tag === 'a') return false;
+  const cls = String(el.className || '').toLowerCase();
+  if (/\b(nav|sidebar|menu|toolbar|header|footer|pagination|tab-bar)\b/.test(cls)) return false;
+  return true;
 }
 
 /**
@@ -295,14 +297,16 @@ export function applySelfIdentity(messages, meName) {
   }));
 }
 
-function finalizeParse(normalized, contactHint, totalRaw) {
+function finalizeParse(normalized, contactHint, totalRaw, options = {}) {
   if (normalized.length === 0) {
     throw new Error('没有可用的文本消息（可能全是非文本或空内容）');
   }
 
+  const forceSelfPick = Boolean(options.forceSelfPick);
   const hasExplicitMe = normalized.some(m => m.isMeExplicit);
   const participants = recognizeParticipants(normalized);
-  const needsSelfPick = !hasExplicitMe && participants.length >= 2;
+  const needsSelfPick =
+    forceSelfPick || (!hasExplicitMe && participants.length >= 2);
 
   const contactName =
     contactHint ||
@@ -316,6 +320,7 @@ function finalizeParse(normalized, contactHint, totalRaw) {
     contactName,
     needsSelfPick,
     totalRaw: totalRaw ?? normalized.length,
+    sourceFormat: options.sourceFormat || 'json',
   };
 }
 

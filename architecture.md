@@ -2,117 +2,41 @@
 
 ## 总体架构
 
-Emotional Damage 采用**纯前端单页应用（SPA）架构**，所有计算在浏览器端完成。整体分为四层：
+纯前端 SPA（Vite + Vanilla JS）。无自有后端；评测经用户浏览器直连 OpenRouter。
 
 ```
 ┌─────────────────────────────────────────────┐
-│               UI 层 (ui.js)                  │
-│  步骤管理 · DOM 渲染 · 事件绑定 · Toast 提示   │
+│  UI (ui.js)  步骤：门禁 → 导入 → 身份 → 加载 → 报告 → 卡片 │
 ├─────────────────────────────────────────────┤
-│            分析引擎层 (analyzer.js)            │
-│  信号检测 · 评分计算 · 画像生成 · 时间线聚合   │
-├─────────────────────────────────────────────┤
-│            解析层 (parser.js)                 │
-│  多格式 JSON 解析 · 消息标准化 · Demo 生成    │
-├─────────────────────────────────────────────┤
-│            渲染/导出层 (cardRenderer.js)       │
-│  分享卡片 DOM 构建 · html2canvas 导出         │
+│  apiGate.js     OpenRouter Key 校验与持久化              │
+│  parser.js      JSON / TXT / HTML → 标准化消息           │
+│  llmEval.js     截断 + 情圣蒸馏 Prompt + JSON 评测       │
+│  cardRenderer.js 分享卡 DOM（html2canvas 导出）          │
 └─────────────────────────────────────────────┘
 ```
 
-### 辅助模块
-- **aiChat.js** — AI 情感顾问（调用 OpenRouter API，与架构主体松耦合）
-- **styles.css** — 全局样式系统
-- **vite.config.js** — 构建配置
+已删除：`analyzer.js`（本地词典打分）、`aiChat.js`（结果页旁路闲聊）。
 
-## 核心数据流
+## 数据流
 
 ```
-用户上传 JSON / 点击 Demo
-        │
-        ▼
-  parser.js  ──→  标准化消息数组
-        │
-        ▼
-  analyzer.js ──→  分析结果对象
-        │
-        ▼
-  ui.js        ──→  渲染结果面板 + 信号分布 + 时间线
-        │
-        ├──→ cardRenderer.js ──→ 分享卡片 DOM → html2canvas 导出
-        │
-        └──→ aiChat.js       ──→ 构建 System Prompt → OpenRouter API
+API Key 门禁
+    → 画像（星座/MBTI）+ 上传/Demo
+    → 必要时选「哪个是我」
+    → truncateMessages（最近 400 条 / 60k 字）
+    → OpenRouter chat/completions
+    → normalizeEvalResult → 报告页 / 分享卡
 ```
 
-## 分析结果对象结构（`analyze()` 返回值）
+## 评测结果（LLM）
 
-```typescript
-interface AnalysisResult {
-  myName: string;
-  theirName: string;
-  totalMessages: number;
-  totalWords: number;
-  dateRange: { start: string; end: string };
-  flirtScore: number;       // 0–100
-  flirtGrade: string;       // S/A/B/C/D
-  gradeColor: string;
-  signalBreakdown: {
-    [category: string]: {
-      me: number;           // 我的触发次数
-      them: number;         // TA 的触发次数
-      quotes: Array<{ text: string; sender: string; isMe: boolean; date: string; category: string }>;
-    };
-  };
-  signalTotals: { [category: string]: number };
-  bilateral: {
-    meFlirtRatio: number;
-    themFlirtRatio: number;
-    meFlirtCount: number;
-    themFlirtCount: number;
-    meInitPct: number;
-    themInitPct: number;
-    verdict: string;
-  };
-  topQuotes: Array<{ text: string; sender: string; isMe: boolean; date: string; categories: string[] }>;
-  tags: Array<{ text: string; type: string }>;
-  timeline: Array<{ month: string; me: number; them: number }>;
-}
-```
+见 `agent.md` 与 `src/llmEval.js` 中的 JSON schema（含 `relationshipStage`、五维 `dimensions` 等）。
 
-## 关键设计决策
+## 隐私
 
-### 1. 信号词典引擎
-- 定义了 5 个暧昧信号维度，每个维度包含一个关键词列表
-- 遍历所有消息进行关键词匹配（子串包含），统计每方触发次数
-- 表情维度使用 `emojiSet` 精确匹配 Unicode 字符
+评测会上传截断聊天与画像字段。门禁页与导入页文案须与此一致。
 
-### 2. 评分算法
-- 每种信号有基础权重（`intimateName: 6`, `missing: 5`, `lateNight: 4`, `flirtyAction: 5`, `flirtyEmoji: 3`）
-- `rawScore = Σ(触发次数 × 权重)`
-- 引入密度因子 `densityFactor = min(rawScore / (总消息数 × 0.5), 1.5)`
-- `flirtScore = min(rawScore × densityFactor × 0.5, 100)`，保证分数分布在 0–100 区间
-- 等级映射：S(≥85) / A(≥70) / B(≥50) / C(≥30) / D(<30)
+## 构建
 
-### 3. 双向对比
-- 分别计算双方"暧昧率"：`暧昧触发次数 / 对方总消息数 × 100`
-- 通过每日首次消息判断"主动开场"比例
-- 根据差值绝对值判定"双向奔赴"、"TA 更主动"、"你更主动"
-
-### 4. 时间线聚合
-- 按月聚合，统计每月双方暧昧信号的触发次数
-- 使用分组柱状图展示趋势
-
-## 隐私与安全
-
-- 解析与评分在浏览器主线程同步执行；分享卡用 `html2canvas` 本地导出
-- 无 `is_send` 等字段时，UI 会要求用户选择「哪个是我」，避免双向对比静默全错
-- 无效时间戳保留为 `null`，不写入 `Date(0)`，避免时间线落到 1970
-- 「深夜亲密」仅统计 23:00–05:00 的命中，并去掉泛用寒暄词
-- AI 顾问默认折叠、强制 API Key；仅上传脱敏摘要与语录，不上传完整记录
-- API Key 存于 `localStorage`
-
-## 构建配置
-
-- **Vite 8**，开发服务器端口 3000，自动打开浏览器
-- 构建输出到 `dist/` 目录，`base: './'` 支持相对路径部署
-- 唯一生产依赖：`html2canvas`
+- Vite 8，`base: './'`，端口 3000  
+- 生产依赖：`html2canvas`
