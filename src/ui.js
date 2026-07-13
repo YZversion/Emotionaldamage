@@ -530,8 +530,9 @@ async function runLlmAnalysis(input) {
       if (dom.loadingBar) {
         if (msg.includes('截断')) dom.loadingBar.style.width = '30%';
         else if (msg.includes('请求')) dom.loadingBar.style.width = '55%';
-        else if (msg.includes('JSON') || msg.includes('重试')) dom.loadingBar.style.width = '75%';
-        else if (msg.includes('整理')) dom.loadingBar.style.width = '90%';
+        else if (msg.includes('JSON') || msg.includes('重试')) dom.loadingBar.style.width = '70%';
+        else if (msg.includes('扩写')) dom.loadingBar.style.width = '82%';
+        else if (msg.includes('整理')) dom.loadingBar.style.width = '92%';
       }
     });
     if (signal.aborted) return;

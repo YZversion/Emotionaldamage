@@ -15,6 +15,10 @@ import {
 export const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 export const MAX_MESSAGES = 400;
 export const MAX_CHARS = 60000;
+/** deepAnalysis 目标字数（汉字/字符，含标点） */
+export const MIN_DEEP_ANALYSIS_CHARS = 5000;
+/** 输出上限：5000 字深度文 + JSON 其它字段，需足够大 */
+export const MAX_OUTPUT_TOKENS = 12288;
 
 const STAGE_LABELS = {
   1: '开场破冰',
@@ -121,14 +125,28 @@ function buildSystemPrompt() {
 ## 评分
 - flirtScore：0–100 整数，综合暧昧浓度、双向性、推进意愿
 - flirtGrade：S≥85 / A≥70 / B≥50 / C≥30 / 否则 D（必须与分数一致）
-- dimensions 五维 score 均为 0–100；risk 越高表示消耗/踩坑风险越大
-- highlights：必须能在所给聊天中找到依据的短句或可核对现象（勿编造原话）
-- advice：3 条可执行下一步（可含「先别回」「这样回」方向，但本任务不强制给出完整话术树）
-- deepAnalysis：多段中文，覆盖局势、关键信号点名（引用）、阶段理由、星座/MBTI 如何影响互动解读
+- dimensions 五维 score 均为 0–100；risk 越高表示消耗/踩坑风险越大；每维 comment 写 40–80 字
+- highlights：3–6 条，必须能在所给聊天中找到依据的短句或可核对现象（勿编造原话）
+- advice：3–5 条可执行下一步（可含「先别回」「这样回」方向）
 - relationshipStage：1–7 整数；relationshipStageLabel 用标准中文名
+- verdict：关系定性一句话；summary：一句话总评（可与 verdict 不同角度）
+
+## deepAnalysis（最重要，篇幅硬性要求）
+必须是一篇完整中文长文，使用换行分段，总字数（含标点、空格）不少于 ${MIN_DEEP_ANALYSIS_CHARS} 字。
+禁止凑字灌水、禁止重复同一句；必须紧扣所给聊天证据展开。
+请按以下小标题结构写满（每个小标题下至少 2–4 段）：
+1. 关系现状总览
+2. 时间线与节奏（谁主动、回覆密度、冷热变化）
+3. 关键 IOI / IOD 证据（引用聊天中的原话或可核对现象，并解释含义）
+4. 阶段判定理由（为何是该阶段，而非相邻阶段）
+5. 双方互动模式（追逃、试探、情绪劳动、边界）
+6. 星座与 MBTI 如何影响解读（若为「不清楚」则写「信息不足时的谨慎推断」）
+7. 风险与误判点（容易看错的地方）
+8. 接下来 7–14 天的策略地图（原则 + 具体动作，勿只给空话）
 
 ## 输出硬性要求
-只输出一个 JSON 对象，不要 Markdown 代码围栏，不要前后解释文字。字段必须齐全：
+只输出一个 JSON 对象，不要 Markdown 代码围栏，不要前后解释文字。
+deepAnalysis 字段本身用 \\n 表示换行。字段必须齐全：
 {
   "flirtScore": 0,
   "flirtGrade": "B",
@@ -142,7 +160,7 @@ function buildSystemPrompt() {
     { "id": "mbtiFit", "label": "MBTI 契合", "score": 0, "comment": "..." },
     { "id": "risk", "label": "风险/消耗", "score": 0, "comment": "..." }
   ],
-  "deepAnalysis": "...",
+  "deepAnalysis": "（不少于 ${MIN_DEEP_ANALYSIS_CHARS} 字的长文）",
   "advice": ["...", "...", "..."],
   "highlights": ["...", "..."],
   "verdict": "关系定性一句话"
@@ -162,8 +180,16 @@ function buildUserPrompt(input, chatText, meta) {
 - 本次发送消息条数：${meta.sentCount}（原始可用 ${meta.totalAvailable} 条${meta.truncated ? '，已截断为最近对话' : ''}）
 - 角色标注：「我」= 用户，「TA」= 对方
 
+## 篇幅提醒（必须遵守）
+- deepAnalysis 必须 ≥ ${MIN_DEEP_ANALYSIS_CHARS} 字；写不满视为不合格输出。
+- 其它字段保持简洁；把篇幅留给 deepAnalysis。
+
 ## 聊天正文
 ${chatText}`;
+}
+
+function countChars(text) {
+  return Array.from(String(text || '')).length;
 }
 
 function gradeFromScore(score) {
@@ -294,6 +320,7 @@ async function callChatCompletions({
     messages,
     temperature: 0.4,
     stream: false,
+    max_tokens: MAX_OUTPUT_TOKENS,
   };
   if (jsonMode) {
     body.response_format = { type: 'json_object' };
@@ -366,6 +393,62 @@ async function callChatCompletions({
 }
 
 /**
+ * 首轮 deepAnalysis 不够长时，单独扩写一次（只改该字段）
+ */
+async function expandDeepAnalysis({
+  apiKey,
+  model,
+  provider,
+  signal,
+  chatText,
+  parsed,
+  profileHint,
+}) {
+  const current = String(parsed.deepAnalysis || '').trim();
+  const need = Math.max(MIN_DEEP_ANALYSIS_CHARS - countChars(current), 1500);
+  const messages = [
+    {
+      role: 'system',
+      content:
+        '你是关系分析写手。只输出合法 JSON 对象：{"deepAnalysis":"..."}。不要 Markdown，不要其它字段。',
+    },
+    {
+      role: 'user',
+      content: `把下面的深度评测扩写成不少于 ${MIN_DEEP_ANALYSIS_CHARS} 字的中文长文（当前约 ${countChars(current)} 字，还需至少约 ${need} 字）。
+要求：保留原有结论与阶段判断；补充证据引用、时间线、互动模式、风险与 7–14 天策略；禁止空洞重复；用 \\n 分段。
+
+## 画像与结论摘要
+${profileHint}
+阶段：${parsed.relationshipStage} ${parsed.relationshipStageLabel || ''}
+总分：${parsed.flirtScore} / ${parsed.flirtGrade}
+总评：${parsed.summary || ''}
+定性：${parsed.verdict || ''}
+
+## 现有 deepAnalysis
+${current || '（空）'}
+
+## 聊天正文（证据来源）
+${chatText}`,
+    },
+  ];
+
+  const content = await callChatCompletions({
+    apiKey,
+    model,
+    messages,
+    signal,
+    provider,
+    jsonMode: true,
+  });
+  const expanded = extractJsonObject(content);
+  const next = String(expanded.deepAnalysis || '').trim();
+  if (countChars(next) > countChars(current)) {
+    parsed.deepAnalysis = next;
+  }
+  return parsed;
+}
+
+/**
  * @param {object} input
  * @param {AbortSignal} [input.signal]
  * @param {string} [input.provider]
@@ -425,6 +508,20 @@ export async function runLlmEval(input, onStatus) {
       jsonMode: true,
     });
     parsed = extractJsonObject(content);
+  }
+
+  const deepLen = countChars(parsed.deepAnalysis);
+  if (deepLen < MIN_DEEP_ANALYSIS_CHARS) {
+    status(`深度评测偏短（${deepLen} 字），正在扩写至 ${MIN_DEEP_ANALYSIS_CHARS}+ 字…`);
+    parsed = await expandDeepAnalysis({
+      apiKey,
+      model,
+      provider,
+      signal,
+      chatText,
+      parsed,
+      profileHint: `你：${input.self?.zodiac}/${input.self?.mbti}；对方：${input.other?.zodiac}/${input.other?.mbti}（${input.contactName || 'TA'}）`,
+    });
   }
 
   const timed = trunc.messages.filter(m => m.time instanceof Date && !isNaN(m.time.getTime()));

@@ -767,11 +767,15 @@ body {
 
 .deep-analysis {
   font-size: 14px;
-  line-height: 1.7;
+  line-height: 1.85;
   color: var(--text-secondary);
   background: #fafafa;
   border-radius: var(--radius-sm);
-  padding: 14px 16px;
+  padding: 16px 18px;
+  max-height: min(70vh, 720px);
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .advice-list {
