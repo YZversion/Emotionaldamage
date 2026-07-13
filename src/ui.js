@@ -1,10 +1,8 @@
 /**
  * UI 层 — 负责步骤切换、DOM 渲染、事件绑定
  */
-import { analyze } from './analyzer.js';
-import { parseChatJson, generateDemoData, applySelfIdentity } from './parser.js';
+import { parseChatFile, generateDemoData, applySelfIdentity } from './parser.js';
 import { renderShareCard } from './cardRenderer.js';
-import { initAIChat } from './aiChat.js';
 import {
   getStoredApiKey,
   clearStoredApiKey,
@@ -13,11 +11,27 @@ import {
   validateApiKey,
   reconnectWithStoredKey,
 } from './apiGate.js';
+import { ZODIAC_OPTIONS, MBTI_OPTIONS, fillSelect } from './profileOptions.js';
+import { runLlmEval, MAX_MESSAGES } from './llmEval.js';
 import html2canvas from 'html2canvas';
 
 // ====== 状态 ======
 let currentResult = null;
-let pendingParse = null; // { messages, participants, contactName }
+let pendingParse = null; // 身份确认中的 parse 快照
+/** @type {{ parsed: object|null, sourceLabel: string, profile: { self: object, other: object }|null }} */
+let evalDraft = {
+  parsed: null,
+  sourceLabel: '',
+  profile: null,
+};
+
+// Phase 3 将读取：已通过校验、可送 LLM 的输入包
+/** @type {null | { apiKey: string, messages: array, contactName: string, self: object, other: object }} */
+let readyEvalInput = null;
+
+export function getReadyEvalInput() {
+  return readyEvalInput;
+}
 
 // ====== DOM refs ======
 const $ = id => document.getElementById(id);
@@ -40,10 +54,17 @@ const dom = {
   apiGateStatus: $('apiGateStatus'),
   apiConnectedLabel: $('apiConnectedLabel'),
   btnChangeApiKey: $('btnChangeApiKey'),
+  selfZodiac: $('selfZodiac'),
+  selfMbti: $('selfMbti'),
+  otherZodiac: $('otherZodiac'),
+  otherMbti: $('otherMbti'),
   uploadZone: $('uploadZone'),
   fileInput: $('fileInput'),
   btnSelectFile: $('btnSelectFile'),
   btnDemo: $('btnDemo'),
+  uploadFileStatus: $('uploadFileStatus'),
+  btnStartEval: $('btnStartEval'),
+  startEvalHint: $('startEvalHint'),
   identifyOptions: $('identifyOptions'),
   btnIdentifyBack: $('btnIdentifyBack'),
   loadingBar: $('loadingBar'),
@@ -56,14 +77,17 @@ const dom = {
   btnDownloadCard: $('btnDownloadCard'),
   shareCard: $('shareCard'),
   resultMeta: $('resultMeta'),
+  resultSummary: $('resultSummary'),
+  resultStage: $('resultStage'),
   scoreRingFg: $('scoreRingFg'),
   ringScore: $('ringScore'),
   ringGrade: $('ringGrade'),
   signalGrid: $('signalGrid'),
-  bilateralContainer: $('bilateralContainer'),
+  deepAnalysis: $('deepAnalysis'),
+  adviceList: $('adviceList'),
   quoteList: $('quoteList'),
   tagsContainer: $('tagsContainer'),
-  timelineChart: $('timelineChart'),
+  verdictLine: $('verdictLine'),
   toast: $('toast'),
 };
 
@@ -103,6 +127,7 @@ async function enterAfterConnect() {
     dom.apiConnectedLabel.textContent = maskKey(getStoredApiKey());
   }
   showStep('import');
+  updateStartEvalHint();
 }
 
 async function handleConnectApi() {
@@ -155,9 +180,95 @@ function handleChangeApiKey() {
   clearStoredApiKey();
   currentResult = null;
   pendingParse = null;
+  readyEvalInput = null;
+  clearChatDraft();
   if (dom.apiKeyInput) dom.apiKeyInput.value = '';
   showApiGate();
   showToast('已退出 API，请重新连接');
+}
+
+function readProfileFromForm() {
+  return {
+    self: {
+      zodiac: dom.selfZodiac?.value || '',
+      mbti: dom.selfMbti?.value || '',
+    },
+    other: {
+      zodiac: dom.otherZodiac?.value || '',
+      mbti: dom.otherMbti?.value || '',
+    },
+  };
+}
+
+function isProfileComplete(profile) {
+  const fields = [
+    profile?.self?.zodiac,
+    profile?.self?.mbti,
+    profile?.other?.zodiac,
+    profile?.other?.mbti,
+  ];
+  return fields.every(v => typeof v === 'string' && v.trim() !== '');
+}
+
+function clearChatDraft() {
+  evalDraft = { parsed: null, sourceLabel: '', profile: null };
+  if (dom.fileInput) dom.fileInput.value = '';
+  updateUploadStatus();
+  updateStartEvalHint();
+}
+
+function updateUploadStatus() {
+  if (!dom.uploadFileStatus) return;
+  if (!evalDraft.parsed) {
+    dom.uploadFileStatus.textContent = '尚未放入聊天文件';
+    dom.uploadFileStatus.classList.remove('ready');
+    dom.uploadZone?.classList.remove('has-file');
+    return;
+  }
+  const n = evalDraft.parsed.messages?.length || 0;
+  const name = evalDraft.parsed.contactName || 'TA';
+  const needPick = evalDraft.parsed.needsSelfPick ? ' · 开始后需确认身份' : '';
+  dom.uploadFileStatus.textContent =
+    `已放入：${evalDraft.sourceLabel || '聊天记录'}（${n} 条，对方：${name}）${needPick}`;
+  dom.uploadFileStatus.classList.add('ready');
+  dom.uploadZone?.classList.add('has-file');
+}
+
+function updateStartEvalHint() {
+  if (!dom.startEvalHint) return;
+  const profile = readProfileFromForm();
+  const missing = [];
+  if (!isProfileComplete(profile)) missing.push('双方星座/MBTI');
+  if (!evalDraft.parsed) missing.push('聊天记录');
+  if (!isApiConnected()) missing.push('API 连接');
+
+  if (missing.length === 0) {
+    dom.startEvalHint.textContent = '可以开始评测';
+    dom.startEvalHint.classList.add('ready');
+    if (dom.btnStartEval) dom.btnStartEval.disabled = false;
+  } else {
+    dom.startEvalHint.textContent = `还差：${missing.join('、')}`;
+    dom.startEvalHint.classList.remove('ready');
+    if (dom.btnStartEval) dom.btnStartEval.disabled = true;
+  }
+}
+
+function initProfileSelects() {
+  fillSelect(dom.selfZodiac, ZODIAC_OPTIONS, '不清楚');
+  fillSelect(dom.selfMbti, MBTI_OPTIONS, '不清楚');
+  fillSelect(dom.otherZodiac, ZODIAC_OPTIONS, '不清楚');
+  fillSelect(dom.otherMbti, MBTI_OPTIONS, '不清楚');
+
+  [dom.selfZodiac, dom.selfMbti, dom.otherZodiac, dom.otherMbti].forEach(el => {
+    el?.addEventListener('change', updateStartEvalHint);
+  });
+}
+
+function applyDemoProfileDefaults() {
+  if (dom.selfZodiac) dom.selfZodiac.value = '天蝎座';
+  if (dom.selfMbti) dom.selfMbti.value = 'INFJ';
+  if (dom.otherZodiac) dom.otherZodiac.value = '双子座';
+  if (dom.otherMbti) dom.otherMbti.value = 'ENFP';
 }
 
 // ====== 步骤切换 ======
@@ -178,23 +289,24 @@ function showStep(name) {
   window.scrollTo(0, 0);
 }
 
-// ====== 信号映射 ======
-const SIGNAL_META = {
-  intimateName: { label: '亲昵称呼', emoji: '💕', color: '#f472b6' },
-  missing: { label: '想念信号', emoji: '🥺', color: '#fb923c' },
-  lateNight: { label: '深夜亲密', emoji: '🌙', color: '#818cf8' },
-  flirtyAction: { label: '暧昧动作', emoji: '🫶', color: '#34d399' },
-  flirtyEmoji: { label: '暧昧表情', emoji: '😘', color: '#fbbf24' },
-};
-
-// ====== 渲染结果 ======
+// ====== 渲染 LLM 报告 ======
 function renderResult(result) {
   currentResult = result;
+
+  const truncNote = result.truncateMeta?.truncated
+    ? ` · 已送模型最近 ${result.truncateMeta.sent}/${result.truncateMeta.total} 条`
+    : result.truncateMeta
+      ? ` · 已送模型 ${result.truncateMeta.sent} 条`
+      : '';
 
   dom.resultMeta.textContent =
     `${result.myName} 与 ${result.theirName} · ` +
     `${result.totalMessages} 条消息 · ` +
-    `${result.dateRange.start} ~ ${result.dateRange.end}`;
+    `${result.dateRange.start} ~ ${result.dateRange.end}` +
+    truncNote +
+    (result.profile
+      ? ` · ${result.profile.self.zodiac}/${result.profile.self.mbti} × ${result.profile.other.zodiac}/${result.profile.other.mbti}`
+      : '');
 
   const circumference = 2 * Math.PI * 88;
   const offset = circumference * (1 - result.flirtScore / 100);
@@ -205,111 +317,69 @@ function renderResult(result) {
   dom.ringGrade.textContent = result.flirtGrade + '级';
   dom.ringGrade.style.fill = result.gradeColor;
 
-  const maxVal = Math.max(...Object.values(result.signalTotals), 1);
-  dom.signalGrid.innerHTML = Object.entries(result.signalTotals).map(([key, total]) => {
-    const meta = SIGNAL_META[key] || { label: key, emoji: '📊', color: '#888' };
-    const pct = Math.max((total / maxVal) * 100, total > 0 ? 10 : 0);
-    const sig = result.signalBreakdown[key];
-    const mePct = total > 0 ? Math.round((sig.me / total) * 100) : 0;
-    const themPct = 100 - mePct;
+  if (dom.resultSummary) dom.resultSummary.textContent = result.summary || '';
+  if (dom.resultStage) {
+    dom.resultStage.textContent = result.relationshipStage
+      ? `情圣阶段定位：阶段${result.relationshipStage} · ${result.relationshipStageLabel}`
+      : '';
+  }
+
+  const dims = result.dimensions || [];
+  const maxVal = Math.max(...dims.map(d => d.score), 1);
+  const colors = ['#f472b6', '#fb923c', '#818cf8', '#34d399', '#fbbf24'];
+  dom.signalGrid.innerHTML = dims.map((d, i) => {
+    const pct = Math.max((d.score / maxVal) * 100, d.score > 0 ? 8 : 0);
     return `
       <div class="signal-item">
-        <div class="signal-icon">${meta.emoji}</div>
-        <div class="signal-info">
-          <div class="signal-name">${meta.label}</div>
+        <div class="signal-info" style="flex:1">
+          <div class="signal-name">${escapeHtml(d.label)}</div>
           <div class="signal-bar-track">
-            <div class="signal-bar-fill" style="width:${pct}%;background:${meta.color}"></div>
+            <div class="signal-bar-fill" style="width:${pct}%;background:${colors[i % colors.length]}"></div>
           </div>
-          <div class="signal-breakdown">
-            <table class="signal-bd-table">
-              <tr>
-                <td>你</td>
-                <td class="bar-cell"><div class="bar-me" style="width:${mePct}%"></div></td>
-                <td>${sig.me}</td>
-                <td class="bar-cell"><div class="bar-them" style="width:${themPct}%"></div></td>
-                <td>TA</td>
-              </tr>
-            </table>
-          </div>
+          <div class="dim-comment">${escapeHtml(d.comment || '')}</div>
         </div>
-        <div class="signal-count">${total}</div>
-      </div>
-    `;
+        <div class="signal-count">${d.score}</div>
+      </div>`;
   }).join('');
 
-  dom.bilateralContainer.innerHTML = `
-    <div class="bilateral-row">
-      <div class="bilateral-label" style="color:var(--primary)">你</div>
-      <div class="bilateral-track">
-        <div class="bilateral-fill me" style="width:${result.bilateral.meFlirtRatio}%"></div>
-      </div>
-      <div class="bilateral-pct" style="color:var(--primary)">${result.bilateral.meFlirtRatio}%</div>
-    </div>
-    <div class="bilateral-row">
-      <div class="bilateral-label" style="color:var(--accent)">TA</div>
-      <div class="bilateral-track">
-        <div class="bilateral-fill them" style="width:${result.bilateral.themFlirtRatio}%"></div>
-      </div>
-      <div class="bilateral-pct" style="color:var(--accent)">${result.bilateral.themFlirtRatio}%</div>
-    </div>
-    <div class="bilateral-initiations">
-      <div class="bilateral-init-item">
-        <div class="bilateral-init-num me">${result.bilateral.meInitPct}%</div>
-        <div class="bilateral-init-label">你主动开场</div>
-      </div>
-      <div class="bilateral-init-item">
-        <div class="bilateral-init-num them">${result.bilateral.themInitPct}%</div>
-        <div class="bilateral-init-label">TA主动开场</div>
-      </div>
-    </div>
-    <div class="bilateral-verdict">${result.bilateral.verdict}</div>
-  `;
+  if (dom.deepAnalysis) {
+    setTextWithBreaks(dom.deepAnalysis, result.deepAnalysis || '');
+  }
 
-  dom.quoteList.innerHTML = result.topQuotes.length > 0
-    ? result.topQuotes.slice(0, 5).map(q => `
-      <div class="quote-item ${q.isMe ? 'me' : 'them'}">
-        <div class="quote-item-text">"${escapeHtml(q.text)}"</div>
-        <div class="quote-item-meta">— ${escapeHtml(q.sender)} · ${q.date}</div>
-      </div>
-    `).join('')
-    : '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:12px;">暂未检测到明显的暧昧信号</div>';
+  if (dom.adviceList) {
+    dom.adviceList.replaceChildren();
+    (result.advice || []).forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = item;
+      dom.adviceList.appendChild(li);
+    });
+  }
 
-  dom.tagsContainer.innerHTML = result.tags.map(t =>
-    `<span class="tag-item type-${t.type}">${t.text}</span>`
+  dom.quoteList.innerHTML = (result.highlights || []).length > 0
+    ? result.highlights.map(h => `
+      <div class="quote-item them">
+        <div class="quote-item-text">"${escapeHtml(h)}"</div>
+      </div>`).join('')
+    : '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:12px;">暂无高光</div>';
+
+  dom.tagsContainer.innerHTML = (result.tags || []).map(t =>
+    `<span class="tag-item type-${t.type || 'neutral'}">${escapeHtml(t.text)}</span>`
   ).join('');
 
-  renderTimeline(result.timeline);
-
-  const aiContainer = $('aiChatContainer');
-  if (aiContainer) {
-    aiContainer.innerHTML = '';
-    initAIChat(aiContainer, result);
+  if (dom.verdictLine) {
+    dom.verdictLine.textContent = result.verdict || '';
   }
 
   showStep('result');
 }
 
-function renderTimeline(timeline) {
-  if (!timeline || timeline.length === 0) {
-    dom.timelineChart.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:12px;">暂无时间线数据（消息缺少有效时间戳）</div>';
-    return;
-  }
-
-  const maxVal = Math.max(...timeline.flatMap(t => [t.me, t.them]), 1);
-
-  dom.timelineChart.innerHTML = `<div class="timeline-bar-container">
-    ${timeline.map(t => {
-      const meH = Math.max((t.me / maxVal) * 70, t.me > 0 ? 6 : 2);
-      const themH = Math.max((t.them / maxVal) * 70, t.them > 0 ? 6 : 2);
-      return `<div class="timeline-bar-group">
-        <div class="timeline-bar-pair">
-          <div class="timeline-bar me" style="height:${meH}px"></div>
-          <div class="timeline-bar them" style="height:${themH}px"></div>
-        </div>
-        <div class="timeline-label">${t.month}</div>
-      </div>`;
-    }).join('')}
-  </div>`;
+function setTextWithBreaks(el, value) {
+  const lines = String(value).split('\n');
+  el.replaceChildren();
+  lines.forEach((line, index) => {
+    if (index > 0) el.appendChild(document.createElement('br'));
+    el.appendChild(document.createTextNode(line));
+  });
 }
 
 // ====== 身份确认 ======
@@ -317,8 +387,7 @@ function showIdentifyStep(parsed) {
   pendingParse = parsed;
   const options = dom.identifyOptions;
   if (!options) {
-    // 无 UI 时退化为选消息更多的一方为对方（不安全，尽量不走到）
-    runAnalysis(parsed.messages, parsed.contactName);
+    proceedToEval(parsed.messages, parsed.contactName);
     return;
   }
 
@@ -341,7 +410,7 @@ function showIdentifyStep(parsed) {
       const messages = applySelfIdentity(pendingParse.messages, name);
       const theirName = pendingParse.participants.find(p => p !== name) || pendingParse.contactName || 'TA';
       pendingParse = null;
-      runAnalysis(messages, theirName);
+      proceedToEval(messages, theirName);
     });
     options.appendChild(btn);
   });
@@ -349,51 +418,95 @@ function showIdentifyStep(parsed) {
   showStep('identify');
 }
 
-// ====== 真实分析（无假进度）======
-function runAnalysis(messages, contactName) {
-  showStep('loading');
-  if (dom.loadingBar) dom.loadingBar.style.width = '20%';
-  if (dom.loadingStatus) dom.loadingStatus.textContent = '正在解析并分析…';
-
-  // 让出一帧，确保 loading UI 先绘制
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      try {
-        if (dom.loadingBar) dom.loadingBar.style.width = '60%';
-        if (dom.loadingStatus) dom.loadingStatus.textContent = '扫描暧昧信号…';
-        const result = analyze(messages, contactName);
-        if (dom.loadingBar) dom.loadingBar.style.width = '100%';
-        if (dom.loadingStatus) dom.loadingStatus.textContent = '完成';
-        renderResult(result);
-      } catch (err) {
-        alert('❌ ' + err.message);
-        showStep('import');
-      }
-    }, 0);
-  });
+/**
+ * 组装输入并调用 LLM 评测
+ */
+function proceedToEval(messages, contactName) {
+  const profile = evalDraft.profile || readProfileFromForm();
+  readyEvalInput = {
+    apiKey: getStoredApiKey(),
+    messages,
+    contactName,
+    self: { ...profile.self },
+    other: { ...profile.other },
+  };
+  runLlmAnalysis(readyEvalInput);
 }
 
-// ====== 处理导入 ======
-function handleData(rawJson) {
+async function runLlmAnalysis(input) {
+  showStep('loading');
+  if (dom.loadingBar) dom.loadingBar.style.width = '15%';
+  if (dom.loadingStatus) {
+    dom.loadingStatus.textContent = `准备评测（最多发送最近 ${MAX_MESSAGES} 条）…`;
+  }
+
+  try {
+    const result = await runLlmEval(input, msg => {
+      if (dom.loadingStatus) dom.loadingStatus.textContent = msg;
+      if (dom.loadingBar) {
+        if (msg.includes('截断')) dom.loadingBar.style.width = '30%';
+        else if (msg.includes('请求')) dom.loadingBar.style.width = '55%';
+        else if (msg.includes('JSON') || msg.includes('重试')) dom.loadingBar.style.width = '75%';
+        else if (msg.includes('整理')) dom.loadingBar.style.width = '90%';
+      }
+    });
+    if (dom.loadingBar) dom.loadingBar.style.width = '100%';
+    if (dom.loadingStatus) dom.loadingStatus.textContent = '完成';
+    renderResult(result);
+  } catch (err) {
+    alert('❌ ' + (err.message || '评测失败'));
+    showStep('import');
+    updateStartEvalHint();
+  }
+}
+
+/** 仅解析并写入草稿，不立即评测 */
+function loadChatIntoDraft(rawText, sourceLabel) {
   if (!requireApiOrGate()) return;
   try {
-    const parsed = parseChatJson(rawJson);
-    if (parsed.needsSelfPick) {
-      showIdentifyStep(parsed);
-      return;
-    }
-    runAnalysis(parsed.messages, parsed.contactName);
+    const parsed = parseChatFile(rawText, sourceLabel);
+    evalDraft.parsed = parsed;
+    evalDraft.sourceLabel = sourceLabel || '聊天记录';
+    updateUploadStatus();
+    updateStartEvalHint();
+    showToast(`已放入 ${parsed.messages.length} 条消息，确认画像后点「开始评测」`);
   } catch (err) {
-    alert('❌ ' + err.message);
-    showStep('import');
+    clearChatDraft();
+    const tip = err.message || '无法解析该文件';
+    alert(`❌ ${tip}\n\n建议：用 WeChatMsg 导出 TXT 或 HTML 后再拖入；或点「先看 Demo」体验流程。`);
   }
+}
+
+function handleStartEval() {
+  if (!requireApiOrGate()) return;
+
+  const profile = readProfileFromForm();
+  if (!isProfileComplete(profile)) {
+    showToast('请完整选择双方的星座与 MBTI（可选「不清楚」）');
+    updateStartEvalHint();
+    return;
+  }
+  if (!evalDraft.parsed) {
+    showToast('请先上传聊天文件或载入 Demo');
+    updateStartEvalHint();
+    return;
+  }
+
+  evalDraft.profile = profile;
+
+  const parsed = evalDraft.parsed;
+  if (parsed.needsSelfPick) {
+    showIdentifyStep(parsed);
+    return;
+  }
+  proceedToEval(parsed.messages, parsed.contactName);
 }
 
 function handleFile(file) {
   if (!requireApiOrGate()) return;
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => handleData(e.target.result);
+  reader.onload = e => loadChatIntoDraft(e.target.result, file.name);
   reader.onerror = () => alert('❌ 文件读取失败，请重试');
   reader.readAsText(file);
 }
@@ -486,7 +599,7 @@ async function copyCardToClipboard(showSuccessMsg = true) {
     try {
       const r = currentResult;
       if (!r) throw new Error('无结果数据');
-      const text = `💔 情感伤害鉴定报告\n━━━━━━━━━━━━━━\n👤 ${r.theirName || 'TA'} 对你的伤害指数\n🔥 暧昧指数：${r.flirtScore} 分（${r.flirtGrade} 级）\n💬 分析消息：${r.totalMessages} 条\n━━━━━━━━━━━━━━\n来自 "Emotional Damage" 鉴定器`;
+      const text = `💔 Emotional Damage 评测\n━━━━━━━━━━━━━━\n👤 ${r.theirName || 'TA'}\n🔥 暧昧指数：${r.flirtScore} 分（${r.flirtGrade} 级）\n📍 ${r.relationshipStage ? `阶段${r.relationshipStage} ${r.relationshipStageLabel}` : ''}\n💬 ${r.summary || r.verdict || ''}\n━━━━━━━━━━━━━━`;
       await navigator.clipboard.writeText(text);
       if (showSuccessMsg) showToast('✅ 文字版已复制到剪贴板');
       return true;
@@ -513,6 +626,10 @@ async function handleSendToThem() {
 
 // ====== 初始化 ======
 export function initUI() {
+  initProfileSelects();
+  updateUploadStatus();
+  updateStartEvalHint();
+
   // API 门禁
   if (dom.btnConnectApi) {
     dom.btnConnectApi.addEventListener('click', () => handleConnectApi());
@@ -560,28 +677,47 @@ export function initUI() {
   });
 
   dom.uploadZone.addEventListener('click', e => {
-    if (e.target.closest('button, input, details')) return;
+    if (e.target.closest('button, input, details, select, label, fieldset, a')) return;
     if (!requireApiOrGate()) return;
     dom.fileInput.click();
   });
 
-  dom.btnDemo.addEventListener('click', () => {
-    if (!requireApiOrGate()) return;
-    const demoData = generateDemoData();
-    handleData(demoData);
+  dom.uploadZone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (e.target.closest('button, input, a')) return;
+      e.preventDefault();
+      if (!requireApiOrGate()) return;
+      dom.fileInput.click();
+    }
   });
+
+  dom.btnDemo.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!requireApiOrGate()) return;
+    applyDemoProfileDefaults();
+    loadChatIntoDraft(generateDemoData(), 'Demo 数据');
+    updateStartEvalHint();
+  });
+
+  if (dom.btnStartEval) {
+    dom.btnStartEval.addEventListener('click', handleStartEval);
+  }
 
   if (dom.btnIdentifyBack) {
     dom.btnIdentifyBack.addEventListener('click', () => {
       pendingParse = null;
+      // 保留已载入的聊天草稿，方便改完身份选项再点开始
       showStep('import');
+      updateStartEvalHint();
     });
   }
 
   dom.btnBack.addEventListener('click', () => {
     currentResult = null;
     pendingParse = null;
+    readyEvalInput = null;
     showStep('import');
+    updateStartEvalHint();
   });
   dom.btnBackFromCard.addEventListener('click', () => {
     if (currentResult) showStep('result');

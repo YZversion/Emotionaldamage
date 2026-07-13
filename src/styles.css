@@ -131,6 +131,109 @@ body {
   font-size: 12px;
 }
 
+.btn-block {
+  width: 100%;
+  justify-content: center;
+  padding: 14px 24px;
+  font-size: 15px;
+}
+
+.btn-primary:disabled,
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ===== 画像表单 ===== */
+.profile-form {
+  width: 100%;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-form-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.profile-form-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-top: -4px;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.profile-fieldset {
+  border: 1px solid #eee;
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.profile-fieldset legend {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 4px;
+  color: var(--text);
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.profile-field select {
+  width: 100%;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: var(--font);
+  background: #fff;
+  color: var(--text);
+  outline: none;
+}
+
+.profile-field select:focus {
+  border-color: var(--primary);
+}
+
+.start-eval-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: -8px;
+}
+
+.start-eval-hint.ready {
+  color: #059669;
+}
+
+@media (max-width: 420px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ===== Steps ===== */
 .step {
   display: none;
@@ -189,20 +292,21 @@ body {
   line-height: 1.5;
 }
 
-/* Upload Zone */
+/* Upload Zone — 拖拽为主 */
 .upload-zone {
   width: 100%;
   background: var(--surface);
-  border: 2px dashed #e0e0e0;
+  border: 2px dashed #d4d4d8;
   border-radius: var(--radius);
-  padding: 40px 24px;
+  padding: 36px 20px 28px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   transition: var(--transition);
   cursor: pointer;
+  box-shadow: var(--shadow);
 }
 
 .upload-zone:hover,
@@ -211,18 +315,129 @@ body {
   background: var(--primary-light);
 }
 
+.upload-zone.dragover {
+  border-style: solid;
+  transform: scale(1.01);
+}
+
+.upload-zone.has-file {
+  border-color: #34d399;
+  border-style: solid;
+  background: #ecfdf5;
+}
+
 .upload-icon {
-  font-size: 40px;
+  font-size: 44px;
+  line-height: 1;
+  margin-bottom: 4px;
 }
 
 .upload-text {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.upload-subtext {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .upload-hint {
   font-size: 12px;
   color: var(--text-muted);
+  line-height: 1.45;
+  max-width: 320px;
+}
+
+.upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.upload-file-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  max-width: 100%;
+  margin-top: 4px;
+}
+
+.upload-file-status.ready {
+  color: #059669;
+  font-weight: 600;
+}
+
+/* 推荐导出三步 */
+.export-guide {
+  width: 100%;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 18px 18px 8px;
+  box-shadow: var(--shadow);
+}
+
+.export-guide-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.export-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 10px;
+}
+
+.export-steps li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.export-step-num {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.export-step-body {
+  text-align: left;
+  min-width: 0;
+}
+
+.export-step-body strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.export-step-body p {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.export-step-body a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* Buttons */
@@ -484,6 +699,63 @@ body {
 .result-header {
   text-align: center;
   margin-bottom: 24px;
+}
+
+.result-summary {
+  margin: 12px 8px 4px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.result-stage {
+  margin: 0 8px 8px;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.deep-analysis {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  background: #fafafa;
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+
+.advice-list {
+  margin: 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.dim-comment {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.verdict-line {
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.card-stage {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #a78bfa;
+  font-weight: 600;
 }
 
 .result-meta {

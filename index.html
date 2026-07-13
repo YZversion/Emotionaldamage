@@ -48,7 +48,7 @@
         <div class="brand">
           <div class="brand-icon">💔</div>
           <h1 class="brand-title">Emotional Damage</h1>
-          <p class="brand-subtitle">暧昧探测器 · 把聊天记录变成可分享的关系卡片</p>
+          <p class="brand-subtitle">微信不支持批量复制，请用工具导出文件后拖进来</p>
         </div>
 
         <div class="api-connected-bar">
@@ -56,40 +56,94 @@
           <button type="button" class="btn btn-ghost btn-sm" id="btnChangeApiKey">更换 / 退出 Key</button>
         </div>
 
-        <div class="upload-zone" id="uploadZone">
-          <div class="upload-icon">📄</div>
-          <p class="upload-text">上传微信聊天记录 <strong>JSON</strong> 文件</p>
-          <p class="upload-hint">需已连接 API。后续评测会上传截断后的聊天内容到 OpenRouter。</p>
-          <input type="file" id="fileInput" accept=".json" hidden />
-          <button class="btn btn-primary" id="btnSelectFile">选择文件</button>
-          <button class="btn btn-secondary" id="btnDemo">🎲 先用 Demo 数据试试</button>
+        <div class="export-guide" id="exportGuide">
+          <h2 class="export-guide-title">推荐导出三步</h2>
+          <ol class="export-steps">
+            <li>
+              <span class="export-step-num">1</span>
+              <div class="export-step-body">
+                <strong>电脑打开微信导出工具</strong>
+                <p>推荐 <a href="https://github.com/LC044/WeChatMsg" target="_blank" rel="noopener noreferrer">WeChatMsg</a>（开源，本地解密电脑版微信聊天记录）</p>
+              </div>
+            </li>
+            <li>
+              <span class="export-step-num">2</span>
+              <div class="export-step-body">
+                <strong>选中对方，导出 TXT 或 HTML</strong>
+                <p>优先纯文本 TXT；HTML 聊天页也可以。无需再转 JSON。</p>
+              </div>
+            </li>
+            <li>
+              <span class="export-step-num">3</span>
+              <div class="export-step-body">
+                <strong>把文件拖到下方虚线框</strong>
+                <p>或点击虚线框选择文件。格式我们自动识别。</p>
+              </div>
+            </li>
+          </ol>
         </div>
+
+        <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="拖拽或点击上传聊天文件">
+          <div class="upload-icon" aria-hidden="true">📥</div>
+          <p class="upload-text">把聊天文件拖到这里</p>
+          <p class="upload-subtext">也支持点击选择 · TXT / HTML / JSON</p>
+          <p class="upload-hint">微信里无法批量复制没关系；用上面三步导出即可。评测会上传截断后的聊天到 OpenRouter。</p>
+          <input type="file" id="fileInput" accept=".json,.txt,.text,.html,.htm,text/plain,text/html,application/json" hidden />
+          <div class="upload-actions">
+            <button class="btn btn-primary" id="btnSelectFile" type="button">选择文件</button>
+            <button class="btn btn-ghost" id="btnDemo" type="button">先看 Demo</button>
+          </div>
+          <p class="upload-file-status" id="uploadFileStatus">尚未放入聊天文件</p>
+        </div>
+
+        <div class="profile-form" id="profileForm">
+          <h2 class="profile-form-title">双方画像</h2>
+          <p class="profile-form-hint">星座与 MBTI 会一并交给 LLM；不知道就选「不清楚」。</p>
+
+          <div class="profile-grid">
+            <fieldset class="profile-fieldset">
+              <legend>你</legend>
+              <label class="profile-field">
+                <span>星座</span>
+                <select id="selfZodiac" required></select>
+              </label>
+              <label class="profile-field">
+                <span>MBTI</span>
+                <select id="selfMbti" required></select>
+              </label>
+            </fieldset>
+            <fieldset class="profile-fieldset">
+              <legend>对方</legend>
+              <label class="profile-field">
+                <span>星座</span>
+                <select id="otherZodiac" required></select>
+              </label>
+              <label class="profile-field">
+                <span>MBTI</span>
+                <select id="otherMbti" required></select>
+              </label>
+            </fieldset>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-block" id="btnStartEval" type="button">开始评测</button>
+        <p class="start-eval-hint" id="startEvalHint">请放入聊天文件并确认画像后再开始</p>
 
         <div class="format-hint">
           <details>
-            <summary>支持的 JSON 格式示例</summary>
-            <pre><code>// 格式一：带 is_send（推荐，可自动区分「我 / TA」）
-[
-  {
-    "time": "2026-05-25 10:30:00",
-    "is_send": true,
-    "sender": "我",
-    "content": "在干嘛呢"
-  }
-]
+            <summary>解析失败？看这里</summary>
+            <pre><code>常见原因：
+· 文件不是聊天导出（空文件 / 只有图片说明）
+· HTML 结构过于少见，可改导出为 TXT 再试
+· 双方都是昵称时，开始后会让你选「哪个是我」
 
-// 格式二：仅有 sender 时，导入后会请你选择「哪个是我」
-{
-  "chat": "联系人姓名",
-  "messages": [
-    {
-      "timestamp": 1777610400,
-      "sender": "Alice",
-      "type": "text",
-      "content": "想你了"
-    }
-  ]
-}</code></pre>
+可识别示例（TXT）：
+[小鹿] 2026-05-25 10:30:00  想你了
+[我] 2026-05-25 10:31:00  我也是
+
+或：
+2026-05-25 10:30:00 小鹿
+想你了</code></pre>
           </details>
         </div>
       </div>
@@ -100,7 +154,7 @@
       <div class="identify-container">
         <div class="brand-icon">👤</div>
         <h2 class="identify-title">请选择：哪个是你？</h2>
-        <p class="identify-hint">文件里没有「是否本人发送」标记，需要你确认后才能正确做双向对比。</p>
+        <p class="identify-hint">文件里没有「是否本人发送」标记，需要你确认后才能正确区分双方。</p>
         <div class="identify-options" id="identifyOptions"></div>
         <button class="btn btn-ghost" id="btnIdentifyBack">← 返回</button>
       </div>
@@ -110,24 +164,22 @@
     <section id="step-loading" class="step">
       <div class="loading-container">
         <div class="loading-heart">💔</div>
-        <h2 class="loading-title">正在分析…</h2>
+        <h2 class="loading-title">正在生成评测…</h2>
         <div class="loading-bar-track">
           <div class="loading-bar-fill" id="loadingBar"></div>
         </div>
-        <p class="loading-status" id="loadingStatus">正在解析并分析…</p>
+        <p class="loading-status" id="loadingStatus">准备请求模型…</p>
       </div>
     </section>
 
-    <!-- ====== STEP 3: 结果仪表盘 ====== -->
+    <!-- ====== STEP 3: LLM 报告 ====== -->
     <section id="step-result" class="step">
-      <!-- 导航 -->
       <nav class="result-nav">
         <button class="nav-back" id="btnBack">← 重新导入</button>
         <button class="nav-cta" id="btnSendToThem">💌 发给他/她</button>
         <button class="nav-export" id="btnShowCard">📸 分享卡片</button>
       </nav>
 
-      <!-- Header 摘要 -->
       <header class="result-header">
         <div class="result-meta" id="resultMeta"></div>
         <div class="score-ring-wrapper">
@@ -139,40 +191,35 @@
             <text class="ring-grade" x="100" y="140" text-anchor="middle" id="ringGrade">-</text>
           </svg>
         </div>
+        <p class="result-summary" id="resultSummary"></p>
+        <p class="result-stage" id="resultStage"></p>
       </header>
 
-      <!-- 信号分类 -->
       <section class="result-section">
-        <h3 class="section-title">📡 暧昧信号分布</h3>
+        <h3 class="section-title">📡 五维评分</h3>
         <div class="signal-grid" id="signalGrid"></div>
       </section>
 
-      <!-- 双向量化 -->
       <section class="result-section">
-        <h3 class="section-title">⚖️ 双向对比</h3>
-        <div class="bilateral-container" id="bilateralContainer"></div>
+        <h3 class="section-title">🧭 深度评测</h3>
+        <div class="deep-analysis" id="deepAnalysis"></div>
       </section>
 
-      <!-- 高光语录 -->
       <section class="result-section">
-        <h3 class="section-title">💬 Top 暧昧语录</h3>
+        <h3 class="section-title">💡 建议</h3>
+        <ul class="advice-list" id="adviceList"></ul>
+      </section>
+
+      <section class="result-section">
+        <h3 class="section-title">💬 高光依据</h3>
         <div class="quote-list" id="quoteList"></div>
       </section>
 
-      <!-- 画像标签 -->
       <section class="result-section">
-        <h3 class="section-title">🏷️ 关系画像</h3>
+        <h3 class="section-title">🏷️ 关系定性</h3>
         <div class="tags-container" id="tagsContainer"></div>
+        <p class="verdict-line" id="verdictLine"></p>
       </section>
-
-      <!-- 时间线 -->
-      <section class="result-section">
-        <h3 class="section-title">📈 暧昧时间线</h3>
-        <div class="timeline-chart" id="timelineChart"></div>
-      </section>
-
-      <!-- AI 顾问 -->
-      <div class="ai-chat-container" id="aiChatContainer"></div>
     </section>
 
     <!-- ====== STEP 4: 分享卡片 ====== -->

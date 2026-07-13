@@ -1,7 +1,8 @@
 # Emotional Damage — LLM 评测主流程改造 Plan
 
 > 状态：规划中（文档先行，业务代码按 Phase 执行）  
-> 决策锁定：聊天 **尽量全文截断**；体验 **LLM 报告为主 + 保留分享卡**
+> 决策锁定：聊天 **尽量全文截断**；体验 **LLM 报告为主 + 保留分享卡**  
+> 补充：导入支持 **JSON / 微信常见纯文本 TXT / HTML 导出**（`parseChatFile`）；导入页以 **推荐导出三步 + 拖拽上传** 为主路径（微信无法批量复制）
 
 ---
 
@@ -77,83 +78,57 @@
 
 ### Phase 2 — 输入：聊天 + 星座/MBTI + 身份
 
-- [ ] 资料表单字段：
-  - [ ] 自己的星座（12 选 1 或含「不清楚」）
-  - [ ] 自己的 MBTI（16 型或含「不清楚」）
-  - [ ] 对方的星座
-  - [ ] 对方的 MBTI
-- [ ] 上传聊天 JSON（复用 `parseChatJson`）
-- [ ] `needsSelfPick` 时进入身份确认（复用现有逻辑）
-- [ ] Demo 数据路径仍可用（自动带 `is_send`，跳过身份或预填资料）
-- [ ] 「开始评测」按钮：校验 Key + 文件 + 四个画像字段齐全
+- [x] 资料表单字段：
+  - [x] 自己的星座（12 选 1 或含「不清楚」）
+  - [x] 自己的 MBTI（16 型或含「不清楚」）
+  - [x] 对方的星座
+  - [x] 对方的 MBTI
+- [x] 上传聊天 JSON（复用 `parseChatJson`）
+- [x] `needsSelfPick` 时进入身份确认（复用现有逻辑）
+- [x] Demo 数据路径仍可用（自动带 `is_send`，跳过身份或预填资料）
+- [x] 「开始评测」按钮：校验 Key + 文件 + 四个画像字段齐全
 
-**完成标准：** 无 Key / 无文件 / 缺画像字段时不能发起评测；有 `is_send` 与无 `is_send` 两条路径都通。
+**完成标准：** 无 Key / 无文件 / 缺画像字段时不能发起评测；有 `is_send` 与无 `is_send` 两条路径都通。  
+**Phase 2 已完成**（上传仅写入草稿；点「开始评测」才走身份/分析。`getReadyEvalInput()` 供 Phase 3 接 LLM）。
 
-**主要文件：** `index.html`, `src/ui.js`, `src/parser.js`, `src/styles.css`
+**主要文件：** `index.html`, `src/ui.js`, `src/profileOptions.js`, `src/styles.css`
 
 ---
 
 ### Phase 3 — 截断 + LLM 结构化评测
 
-- [ ] 新建（推荐）`src/llmEval.js`：组装 prompt、截断、调用、解析 JSON
-- [ ] 截断策略实现：
-  - [ ] 按时间升序
-  - [ ] 格式化为可读行：`[YYYY-MM-DD HH:mm] 我/TA: content`
-  - [ ] 同时受 `MAX_MESSAGES` 与 `MAX_CHARS` 约束；超限从**最早**丢掉（保留最近对话）或从中间抽——**首版采用：保留最近 N 条**（更符合关系现状）
-- [ ] System/User prompt 写入：双方星座、MBTI、截断后聊天、评分维度说明
-- [ ] 要求模型 **只返回 JSON**（可 `response_format` / 强约束 + 本地 `JSON.parse` 容错）
-- [ ] JSON schema（字段名冻结，前后端一致）：
+- [x] 新建（推荐）`src/llmEval.js`：组装 prompt、截断、调用、解析 JSON
+- [x] 截断策略实现：
+  - [x] 按时间升序
+  - [x] 格式化为可读行：`[YYYY-MM-DD HH:mm] 我/TA: content`
+  - [x] 同时受 `MAX_MESSAGES` 与 `MAX_CHARS` 约束；**保留最近**对话
+- [x] System/User prompt：双方星座、MBTI、截断聊天 + **情圣七阶段/IOI 蒸馏框架**（MIT 改编自 qingsheng-skill）
+- [x] 要求模型只返回 JSON + 本地 parse；失败再修一次
+- [x] JSON schema（含 `relationshipStage` / `relationshipStageLabel`）
+- [x] 非流式
+- [x] 错误处理：401/429/JSON 失败 → 中文提示
 
-```json
-{
-  "flirtScore": 0,
-  "flirtGrade": "S|A|B|C|D",
-  "summary": "一句话总评",
-  "dimensions": [
-    { "id": "chemistry", "label": "暧昧浓度", "score": 0, "comment": "..." },
-    { "id": "reciprocity", "label": "双向性", "score": 0, "comment": "..." },
-    { "id": "zodiacFit", "label": "星座契合", "score": 0, "comment": "..." },
-    { "id": "mbtiFit", "label": "MBTI 契合", "score": 0, "comment": "..." },
-    { "id": "risk", "label": "风险/消耗", "score": 0, "comment": "..." }
-  ],
-  "deepAnalysis": "多段深度评测正文",
-  "advice": ["建议1", "建议2", "建议3"],
-  "highlights": ["从聊天中引用的短句或现象1", "2"],
-  "verdict": "关系定性一句话"
-}
-```
+**完成标准：** Demo + 画像可走通 LLM 报告页。  
+**Phase 3 已完成**（结果页已切到 LLM 报告结构；分享卡同步接 LLM 字段，可视为 Phase 4/5 提前完成大半）。
 
-- [ ] 流式：首版可用非流式拿完整 JSON（更稳）；若要打字机效果放到后续
-- [ ] 错误处理：401/429/JSON 解析失败 → 可读中文提示，可重试
-
-**完成标准：** 用 Demo + 填画像，能稳定拿到符合 schema 的对象；故意坏 Key / 超大文件有明确失败态。
-
-**主要文件：** `src/llmEval.js`（新）, `src/ui.js`
-
----
+**主要文件：** `src/llmEval.js`, `src/ui.js`, `index.html`, `src/cardRenderer.js`
 
 ### Phase 4 — 结果页（LLM 报告为主）
 
-- [ ] 结果页改为渲染 Phase 3 JSON：总分环、分项、深度评测、建议列表、高光
-- [ ] Loading：真实「正在请求模型评测…」，禁止假进度演完再请求
-- [ ] 去掉「结果页内嵌闲聊 AI」作为主交互（可整块移除或隐藏）
-- [ ] 返回可重新上传/改画像
+- [x] 结果页改为渲染 LLM JSON：总分环、分项、深度评测、建议、高光
+- [x] Loading：真实「正在请求模型评测…」
+- [x] 去掉结果页内嵌闲聊 AI
+- [ ] 返回可重新上传/改画像（已有返回导入；可再打磨）
 
-**完成标准：** 用户感知主交付是「报告」，不是旧词典仪表盘。
-
-**主要文件：** `index.html`, `src/ui.js`, `src/styles.css`
-
----
+**Phase 4 基本完成**（返回路径已有）。
 
 ### Phase 5 — 分享卡绑定 LLM 结果
 
-- [ ] `cardRenderer.js` 入参改为 LLM 结果（分数、等级、summary/verdict、建议摘要、画像标签可来自维度）
-- [ ] 复制/下载 PNG 流程保持
-- [ ] 卡片不展示原始聊天大段，只展示结论向内容
+- [x] `cardRenderer.js` 绑定 LLM 分数/阶段/总评/建议摘要
+- [x] 复制/下载 PNG 流程保持
+- [x] 卡片不展示原始聊天大段
 
-**完成标准：** 分享卡上的分数与文案与报告页一致，且来自同一次 LLM 结果。
-
-**主要文件：** `src/cardRenderer.js`, `src/ui.js`
+**Phase 5 已完成。**
 
 ---
 
