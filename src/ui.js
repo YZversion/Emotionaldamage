@@ -9,7 +9,6 @@ import html2canvas from 'html2canvas';
 
 // ====== 状态 ======
 let currentResult = null;
-let rawMessages = [];
 
 // ====== DOM refs ======
 const $ = id => document.getElementById(id);
@@ -224,13 +223,17 @@ function renderTimeline(timeline) {
 }
 
 // ====== 处理导入 ======
-function handleData(rawJson, fileName) {
+function handleData(rawJson) {
   try {
     const parsed = parseChatJson(rawJson);
-    rawMessages = parsed.messages; // 保存原始消息供 AI 使用
     animateLoading(() => {
-      const result = analyze(parsed.messages, parsed.contactName);
-      renderResult(result);
+      try {
+        const result = analyze(parsed.messages, parsed.contactName);
+        renderResult(result);
+      } catch (err) {
+        alert('❌ ' + err.message);
+        showStep('import');
+      }
     });
   } catch (err) {
     alert('❌ ' + err.message);
@@ -241,7 +244,7 @@ function handleData(rawJson, fileName) {
 function handleFile(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => handleData(e.target.result, file.name);
+  reader.onload = e => handleData(e.target.result);
   reader.onerror = () => alert('❌ 文件读取失败，请重试');
   reader.readAsText(file);
 }
@@ -387,18 +390,20 @@ export function initUI() {
   });
 
   // 点击上传区直接选文件
-  dom.uploadZone.addEventListener('click', () => dom.fileInput.click());
+  dom.uploadZone.addEventListener('click', e => {
+    if (e.target.closest('button, input, details')) return;
+    dom.fileInput.click();
+  });
 
   // Demo
   dom.btnDemo.addEventListener('click', () => {
     const demoData = generateDemoData();
-    handleData(demoData, 'demo-data.json');
+    handleData(demoData);
   });
 
   // 导航
   dom.btnBack.addEventListener('click', () => {
     currentResult = null;
-    rawMessages = [];
     showStep('import');
   });
   dom.btnBackFromCard.addEventListener('click', () => {

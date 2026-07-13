@@ -214,29 +214,6 @@ export function initAIChat(container, result) {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  // 追加内容到最后一条助手消息
-  function appendToLastAssistant(chunk) {
-    const last = convHistory[convHistory.length - 1];
-    if (last && last.role === 'assistant') {
-      last.content += chunk;
-    } else {
-      convHistory.push({ role: 'assistant', content: chunk });
-    }
-    // 更新 DOM
-    const msgs = messagesEl.querySelectorAll('.ai-chat-msg');
-    let lastMsgEl = msgs[msgs.length - 1];
-    if (lastMsgEl && !lastMsgEl.classList.contains('user')) {
-      lastMsgEl.innerHTML = last.content.replace(/\n/g, '<br>');
-    } else {
-      // 追加新消息元素
-      const div = document.createElement('div');
-      div.className = 'ai-chat-msg assistant';
-      div.innerHTML = chunk.replace(/\n/g, '<br>');
-      messagesEl.appendChild(div);
-    }
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-
   renderMessages();
 
   // 发送消息

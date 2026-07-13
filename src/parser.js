@@ -3,18 +3,6 @@
  * 支持多种 JSON 格式 → 统一内部格式
  */
 
-const INTERNAL_FORMAT = {
-  /**
-   * 统一消息格式:
-   * {
-   *   time: Date,
-   *   isMe: boolean,     // 是否是我发的
-   *   sender: string,    // 发送者名称
-   *   content: string,   // 消息文本
-   * }
-   */
-};
-
 /**
  * 解析上传的 JSON 数据
  * @param {string} rawJson - 原始 JSON 字符串
