@@ -11,7 +11,7 @@ npm run dev
 ```
 
 1. 连接 OpenRouter API Key（免费模型也需要 Key）
-2. 按页内「推荐导出三步」用工具（如 WeChatMsg）导出 TXT/HTML，拖入页面（也支持 JSON）
+2. 按页内「推荐导出三步」用工具（如 WeChatMsg）导出 **纯文本 TXT**，拖入页面（也支持 JSON；WeChatMsg 的 HTML 导出是动态网页，无法解析）
 3. 填写双方星座、MBTI（可选「不清楚」）
 4. 开始评测 → 查看报告 / 分享卡片
 

@@ -531,7 +531,6 @@ async function runLlmAnalysis(input) {
         if (msg.includes('截断')) dom.loadingBar.style.width = '30%';
         else if (msg.includes('请求')) dom.loadingBar.style.width = '55%';
         else if (msg.includes('JSON') || msg.includes('重试')) dom.loadingBar.style.width = '70%';
-        else if (msg.includes('扩写')) dom.loadingBar.style.width = '82%';
         else if (msg.includes('整理')) dom.loadingBar.style.width = '92%';
       }
     });
@@ -570,7 +569,7 @@ function loadChatIntoDraft(rawText, sourceLabel) {
   } catch (err) {
     clearChatDraft();
     const tip = err.message || '无法解析该文件';
-    alert(`❌ ${tip}\n\n建议：用 WeChatMsg 导出 TXT 或 HTML 后再拖入；或点「先看 Demo」体验流程。`);
+    alert(`❌ ${tip}\n\n建议：用 WeChatMsg 导出「纯文本 TXT」后再拖入（其 HTML 导出是动态网页，无法解析）；或点「先看 Demo」体验流程。`);
   }
 }
 

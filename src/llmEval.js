@@ -15,9 +15,9 @@ import {
 export const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 export const MAX_MESSAGES = 400;
 export const MAX_CHARS = 60000;
-/** deepAnalysis 目标字数（汉字/字符，含标点） */
-export const MIN_DEEP_ANALYSIS_CHARS = 5000;
-/** 输出上限：5000 字深度文 + JSON 其它字段，需足够大 */
+/** deepAnalysis 目标字数（汉字/字符，含标点）；定在模型一次能自然写满的区间，避免触发补救链 */
+export const MIN_DEEP_ANALYSIS_CHARS = 1800;
+/** 输出上限：约 2000 字深度文 + JSON 其它字段，余量需远大于典型输出以免 mid-JSON 截断 */
 export const MAX_OUTPUT_TOKENS = 12288;
 
 const STAGE_LABELS = {
@@ -134,7 +134,7 @@ function buildSystemPrompt() {
 ## deepAnalysis（最重要，篇幅硬性要求）
 必须是一篇完整中文长文，使用换行分段，总字数（含标点、空格）不少于 ${MIN_DEEP_ANALYSIS_CHARS} 字。
 禁止凑字灌水、禁止重复同一句；必须紧扣所给聊天证据展开。
-请按以下小标题结构写满（每个小标题下至少 2–4 段）：
+请按以下小标题结构写（每个小标题下 1–2 段，贴证据写实）：
 1. 关系现状总览
 2. 时间线与节奏（谁主动、回覆密度、冷热变化）
 3. 关键 IOI / IOD 证据（引用聊天中的原话或可核对现象，并解释含义）
@@ -186,10 +186,6 @@ function buildUserPrompt(input, chatText, meta) {
 
 ## 聊天正文
 ${chatText}`;
-}
-
-function countChars(text) {
-  return Array.from(String(text || '')).length;
 }
 
 function gradeFromScore(score) {
@@ -393,62 +389,6 @@ async function callChatCompletions({
 }
 
 /**
- * 首轮 deepAnalysis 不够长时，单独扩写一次（只改该字段）
- */
-async function expandDeepAnalysis({
-  apiKey,
-  model,
-  provider,
-  signal,
-  chatText,
-  parsed,
-  profileHint,
-}) {
-  const current = String(parsed.deepAnalysis || '').trim();
-  const need = Math.max(MIN_DEEP_ANALYSIS_CHARS - countChars(current), 1500);
-  const messages = [
-    {
-      role: 'system',
-      content:
-        '你是关系分析写手。只输出合法 JSON 对象：{"deepAnalysis":"..."}。不要 Markdown，不要其它字段。',
-    },
-    {
-      role: 'user',
-      content: `把下面的深度评测扩写成不少于 ${MIN_DEEP_ANALYSIS_CHARS} 字的中文长文（当前约 ${countChars(current)} 字，还需至少约 ${need} 字）。
-要求：保留原有结论与阶段判断；补充证据引用、时间线、互动模式、风险与 7–14 天策略；禁止空洞重复；用 \\n 分段。
-
-## 画像与结论摘要
-${profileHint}
-阶段：${parsed.relationshipStage} ${parsed.relationshipStageLabel || ''}
-总分：${parsed.flirtScore} / ${parsed.flirtGrade}
-总评：${parsed.summary || ''}
-定性：${parsed.verdict || ''}
-
-## 现有 deepAnalysis
-${current || '（空）'}
-
-## 聊天正文（证据来源）
-${chatText}`,
-    },
-  ];
-
-  const content = await callChatCompletions({
-    apiKey,
-    model,
-    messages,
-    signal,
-    provider,
-    jsonMode: true,
-  });
-  const expanded = extractJsonObject(content);
-  const next = String(expanded.deepAnalysis || '').trim();
-  if (countChars(next) > countChars(current)) {
-    parsed.deepAnalysis = next;
-  }
-  return parsed;
-}
-
-/**
  * @param {object} input
  * @param {AbortSignal} [input.signal]
  * @param {string} [input.provider]
@@ -508,20 +448,6 @@ export async function runLlmEval(input, onStatus) {
       jsonMode: true,
     });
     parsed = extractJsonObject(content);
-  }
-
-  const deepLen = countChars(parsed.deepAnalysis);
-  if (deepLen < MIN_DEEP_ANALYSIS_CHARS) {
-    status(`深度评测偏短（${deepLen} 字），正在扩写至 ${MIN_DEEP_ANALYSIS_CHARS}+ 字…`);
-    parsed = await expandDeepAnalysis({
-      apiKey,
-      model,
-      provider,
-      signal,
-      chatText,
-      parsed,
-      profileHint: `你：${input.self?.zodiac}/${input.self?.mbti}；对方：${input.other?.zodiac}/${input.other?.mbti}（${input.contactName || 'TA'}）`,
-    });
   }
 
   const timed = trunc.messages.filter(m => m.time instanceof Date && !isNaN(m.time.getTime()));

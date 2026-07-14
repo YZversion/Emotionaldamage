@@ -81,8 +81,8 @@
             <li>
               <span class="export-step-num">2</span>
               <div class="export-step-body">
-                <strong>选中对方，导出 TXT 或 HTML</strong>
-                <p>优先纯文本 TXT；HTML 聊天页也可以。无需再转 JSON。</p>
+                <strong>选中对方，导出「纯文本 TXT」</strong>
+                <p>请选 TXT。WeChatMsg 的 HTML 导出是动态网页，本站无法解析；JSON 也支持。</p>
               </div>
             </li>
             <li>
@@ -98,7 +98,7 @@
         <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="拖拽或点击上传聊天文件">
           <div class="upload-icon" aria-hidden="true">📥</div>
           <p class="upload-text">把聊天文件拖到这里</p>
-          <p class="upload-subtext">也支持点击选择 · TXT / HTML / JSON</p>
+          <p class="upload-subtext">也支持点击选择 · 优先 TXT（也可 JSON / 部分工具的 HTML）</p>
           <p class="upload-hint">微信里无法批量复制没关系；用上面三步导出即可。评测会上传截断后的聊天到 OpenRouter。</p>
           <input type="file" id="fileInput" accept=".json,.txt,.text,.html,.htm,text/plain,text/html,application/json" hidden />
           <div class="upload-actions">
@@ -146,7 +146,8 @@
             <summary>解析失败？看这里</summary>
             <pre><code>常见原因：
 · 文件不是聊天导出（空文件 / 只有图片说明）
-· HTML 结构过于少见，可改导出为 TXT 再试
+· WeChatMsg 导出的 HTML 是动态网页，无法解析，请改用 TXT
+· 其它工具的 HTML 结构过于少见时，也请改导出为 TXT
 · 双方都是昵称时，或 HTML 导出，开始后会让你选「哪个是我」
 
 可识别示例（TXT）：
