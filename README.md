@@ -46,4 +46,4 @@ plan.md / agent.md  # 改造计划与模块规格
 
 ## License
 
-ISC（应用代码）。情圣相关 Prompt 改编需保留其 MIT 署名，见 `llmEval.js` 文件头。
+MIT（见 `LICENSE`）。情圣相关 Prompt 改编需保留其 MIT 署名，见 `llmEval.js` 文件头。

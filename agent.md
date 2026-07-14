@@ -20,7 +20,7 @@
 
 ## 2. 输入契约
 
-与 `getReadyEvalInput()` / `runLlmEval(input)` 一致：
+与 `runLlmEval(input)` 一致：
 
 ```ts
 interface EvalInput {

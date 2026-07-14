@@ -21,3 +21,10 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Vendored reference repo (web app runtime does not use it)
+WeChatMsg/
+
+# Tool caches
+.understand-anything/
+.agents/

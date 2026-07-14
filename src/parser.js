@@ -423,15 +423,19 @@ function parseFlexibleTime(value) {
     const n = Number(s);
     return new Date(n > 1e11 ? n : n * 1000);
   }
-  // 2024/1/2 3:04:05 → 可被 Date 解析的形式
-  const normalized = s
-    .replace(/年|\/|\./g, '-')
-    .replace(/月/g, '-')
-    .replace(/日/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const d = new Date(normalized);
-  if (!isNaN(d.getTime())) return d;
+  // 显式解析「Y-M-D H:m(:s)」及 年月日/斜杠/点分隔变体：
+  // new Date(非 ISO 字符串) 的行为因浏览器而异（Safari 会拒绝空格分隔形式），不可依赖
+  const m = s.match(
+    /^(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})日?(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/
+  );
+  if (m) {
+    const d = new Date(
+      +m[1], +m[2] - 1, +m[3],
+      m[4] ? +m[4] : 0, m[5] ? +m[5] : 0, m[6] ? +m[6] : 0
+    );
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // 兜底：ISO 等标准格式（JSON 导出常见 toISOString）
   const d2 = new Date(s);
   return isNaN(d2.getTime()) ? null : d2;
 }

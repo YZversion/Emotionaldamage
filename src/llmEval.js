@@ -71,14 +71,17 @@ export function truncateMessages(messages) {
   }
   picked.reverse();
 
-  // 无时间戳的附在末尾（仍受上限）
-  for (const m of untimed) {
-    if (picked.length >= MAX_MESSAGES) break;
-    const line = formatMessageLine(m);
+  // 无时间戳的附在末尾（仍受上限）；文件顺序视为时间序，从尾部取以保住「保留最近」
+  const pickedUntimed = [];
+  for (let i = untimed.length - 1; i >= 0; i--) {
+    if (picked.length + pickedUntimed.length >= MAX_MESSAGES) break;
+    const line = formatMessageLine(untimed[i]);
     if (chars + line.length > MAX_CHARS) break;
-    picked.push(m);
+    pickedUntimed.push(untimed[i]);
     chars += line.length + 1;
   }
+  pickedUntimed.reverse();
+  picked.push(...pickedUntimed);
 
   return {
     messages: picked,

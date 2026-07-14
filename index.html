@@ -4,9 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Emotional Damage · 暧昧探测</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- 不引外部字体：目标用户在大陆网络，fonts.googleapis.com 会阻塞首屏；styles.css 的 font stack 以 system-ui 兜底 -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>💘</text></svg>" />
 </head>
 <body>
@@ -18,7 +16,7 @@
         <div class="brand">
           <div class="brand-icon">🔑</div>
           <h1 class="brand-title">Emotional Damage</h1>
-          <p class="brand-subtitle">先连接 LLM（OpenRouter 或智谱），再上传聊天做评测</p>
+          <p class="brand-subtitle">先连接 LLM，再上传聊天做评测</p>
         </div>
 
         <div class="api-gate-card">

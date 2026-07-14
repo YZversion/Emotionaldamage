@@ -17,6 +17,7 @@ import {
   setStoredModel,
 } from './apiGate.js';
 import { ZODIAC_OPTIONS, MBTI_OPTIONS, fillSelect } from './profileOptions.js';
+import { PROVIDER_OPENROUTER, PROVIDER_ZHIPU } from './providers.js';
 import { runLlmEval, MAX_MESSAGES } from './llmEval.js';
 import html2canvas from 'html2canvas';
 
@@ -29,9 +30,6 @@ let evalDraft = {
   sourceLabel: '',
   profile: null,
 };
-
-/** @type {null | { apiKey: string, messages: array, contactName: string, self: object, other: object }} */
-let readyEvalInput = null;
 
 /** 评测进行中：防重入 + 可取消 */
 let isEvaluating = false;
@@ -246,7 +244,6 @@ function handleChangeApiKey() {
   clearStoredApiKey();
   currentResult = null;
   pendingParse = null;
-  readyEvalInput = null;
   clearChatDraft();
   if (dom.apiKeyInput) dom.apiKeyInput.value = '';
   showApiGate();
@@ -496,7 +493,7 @@ function showIdentifyStep(parsed) {
 function proceedToEval(messages, contactName) {
   const profile = evalDraft.profile || readProfileFromForm();
   const provider = getStoredProvider();
-  readyEvalInput = {
+  runLlmAnalysis({
     apiKey: getStoredApiKey(provider),
     provider,
     model: getStoredModel(provider),
@@ -504,8 +501,7 @@ function proceedToEval(messages, contactName) {
     contactName,
     self: { ...profile.self },
     other: { ...profile.other },
-  };
-  runLlmAnalysis(readyEvalInput);
+  });
 }
 
 async function runLlmAnalysis(input) {
@@ -534,7 +530,11 @@ async function runLlmAnalysis(input) {
         else if (msg.includes('整理')) dom.loadingBar.style.width = '92%';
       }
     });
-    if (signal.aborted) return;
+    if (signal.aborted) {
+      setEvaluating(false);
+      showStep('import');
+      return;
+    }
     if (dom.loadingBar) dom.loadingBar.style.width = '100%';
     if (dom.loadingStatus) dom.loadingStatus.textContent = '完成';
     setEvaluating(false);
@@ -726,6 +726,15 @@ async function handleSendToThem() {
 
 // ====== 初始化 ======
 export function initUI() {
+  // 智谱直连依赖 vite dev/preview 代理，静态部署不可用：生产构建隐藏入口
+  // （Phase B 改为自持 Key 薄后端后再恢复，见 problem.md #3）
+  if (import.meta.env.PROD) {
+    dom.providerBtnZhipu?.remove();
+    if (getStoredProvider() === PROVIDER_ZHIPU) {
+      setStoredProvider(PROVIDER_OPENROUTER);
+    }
+  }
+
   initProfileSelects();
   updateUploadStatus();
   updateStartEvalHint();
@@ -839,7 +848,6 @@ export function initUI() {
   dom.btnBack.addEventListener('click', () => {
     currentResult = null;
     pendingParse = null;
-    readyEvalInput = null;
     showStep('import');
     updateStartEvalHint();
   });

@@ -10,7 +10,7 @@ import {
   getProviderConfig,
   getStoredApiKey,
   setStoredApiKey,
-  clearStoredApiKey as clearProviderKey,
+  clearAllStoredApiKeys,
   getStoredModel,
   setStoredModel,
   looksLikeProviderKey,
@@ -29,7 +29,7 @@ export {
 let sessionConnected = false;
 
 export function clearStoredApiKey() {
-  clearProviderKey(getStoredProvider());
+  clearAllStoredApiKeys();
   sessionConnected = false;
 }
 

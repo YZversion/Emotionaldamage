@@ -26,13 +26,12 @@ export const PROVIDERS = {
     models: [
       { id: 'openai/gpt-4o-mini', label: 'GPT-4o mini' },
       { id: 'openai/gpt-4o', label: 'GPT-4o' },
-      { id: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash' },
+      { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
       { id: 'z-ai/glm-4.5-air', label: 'GLM-4.5 Air（经 OpenRouter）' },
     ],
-    /** 浏览器可直连 */
+    /** 浏览器可直连（CORS 已实测：预检 204 + ACAO:*） */
     chatUrl: 'https://openrouter.ai/api/v1/chat/completions',
     validateUrl: 'https://openrouter.ai/api/v1/key',
-    validateMethod: 'GET',
   },
   [PROVIDER_ZHIPU]: {
     id: PROVIDER_ZHIPU,
@@ -50,10 +49,9 @@ export const PROVIDERS = {
       { id: 'glm-4-plus', label: 'GLM-4-Plus' },
       { id: 'glm-4.5-flash', label: 'GLM-4.5-Flash' },
     ],
-    // 经 Vite 代理，避免浏览器 CORS
+    // 经 Vite 代理，避免浏览器 CORS；代理只在 dev/preview 存在，生产构建已隐藏本 provider 入口
     chatUrl: '/api/zhipu/api/paas/v4/chat/completions',
     validateUrl: '/api/zhipu/api/paas/v4/chat/completions',
-    validateMethod: 'POST',
   },
 };
 
@@ -97,6 +95,12 @@ export function setStoredApiKey(key, provider = getStoredProvider()) {
 export function clearStoredApiKey(provider = getStoredProvider()) {
   const storageKey = KEY_STORAGE[provider] || KEY_STORAGE[PROVIDER_OPENROUTER];
   localStorage.removeItem(storageKey);
+  localStorage.removeItem('aiChatApiKey');
+}
+
+/** 「退出 Key」语义：所有 provider 的 Key 一并清除，不留明文残余 */
+export function clearAllStoredApiKeys() {
+  Object.values(KEY_STORAGE).forEach(k => localStorage.removeItem(k));
   localStorage.removeItem('aiChatApiKey');
 }
 

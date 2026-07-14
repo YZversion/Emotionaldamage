@@ -40,21 +40,25 @@
 
 ## P1 — 生产环境功能性缺陷
 
-### 3. 智谱 provider 在任何静态部署下必然不可用
+### 3. 智谱 provider 在任何静态部署下必然不可用 →（决策已更新：面向大陆用户走「薄后端」路线）
 
-- [ ] 决策：直接删除智谱直连 provider（推荐，见「建议删除」#1），或上真代理 / edge function（违背「无后端」决策，不推荐）
+**决策（2026-07-14 讨论定稿）**：目标用户是大陆普通用户 → BYOK 架构本身才是天花板（逼用户注册 API Key = 最大流失点）。不删智谱代码、不修 dev 代理，按 Phase 演进：
 
-**位置**：`src/providers.js:54-55`（`chatUrl: '/api/zhipu/...'`）、`vite.config.js:3-10`
+- [x] **止血**：生产构建隐藏智谱入口（`ui.js` initUI 中 `import.meta.env.PROD` 时移除按钮并回退 provider；已验证编译进 dist）。dev 下智谱经 vite 代理照旧可用
+- [ ] **Phase A（现在）**：OpenRouter BYOK 当「海外版/开发版」，继续打磨 prompt 与报告结构
+- [ ] **前置实验（写后端前必做）**：注册智谱 Key（免费），同一 Demo + 同一 prompt 在 GLM-4.7-Flash 上跑一轮，与 GPT 系并排比质量；顺便验证露骨聊天内容是否触发智谱内容过滤。⚠️ 当前网络连不上 bigmodel.cn（实测超时），需换网络测
+- [ ] **Phase B（实验通过后，2-4 天 + ~¥30/月）**：香港轻量服务器（免备案、大陆一般可达），前后端同机；后端单接口收 `{messages, profile}`、服务端拼 prompt、自持智谱 Key 调模型；删门禁页；IP 限流 + 全局日额度熔断。注意 GitHub Pages 在大陆间歇不可达——前端也要搬
+- [ ] **Phase C（起量后再说）**：备案、国内托管、微信登录、付费。现在不为它设计任何东西
 
-**后果**：代理只存在于 `vite dev/preview` 进程；`architecture.md` 定位「纯前端 SPA 无自有后端」、`base: './'` 就是为静态托管准备的。部署到 Pages 后门禁页照样展示「智谱 GLM」入口，用户输入 Key → 请求打到自己域名 404/返回 index.html → 「连接失败」。这不是降级，是生产形态下结构性跑不通的功能入口。另外若智谱 `glm-4-flash` 输出上限确为 4k（未验证，见「不确定项」），`max_tokens: 12288` 即使在 dev 下也过不去——400 后的降级重试只去掉 `response_format`，仍带 12288（`src/llmEval.js:370-383`）。
+**已验证事实（2026-07-14）**：OpenRouter CORS 预检 204 + `Access-Control-Allow-Origin: *`，浏览器直连生产可用；GLM-4.5-Flash 最大输出 4096 tokens（官方文档），故 `glm-4-flash` + `max_tokens: 12288` 即使 dev 下也过不去——Phase B 应使用 GLM-4.7 系（输出上限 65536，flash 免费）；`google/gemini-2.0-flash-001` 已从 OpenRouter 下架，模型列表已换为 `gemini-2.5-flash`。
 
-**修复成本**：小时级（删）/ 天级（真代理）。
+**原始问题记录**（保留供参考）：`/api/zhipu/...` 代理只存在于 `vite dev/preview` 进程；静态部署后选智谱 → 请求打到自己域名 404 → 「连接失败」。
 
 ---
 
 ### 4. Google Fonts 渲染阻塞，目标用户恰好在大陆网络
 
-- [ ] 删除 `index.html:7-9` 的 fonts.googleapis.com 外链（`styles.css:23` 的 font stack 已有 `system-ui` 兜底），或自托管 + `font-display: swap`
+- [x] 已删除 fonts.googleapis.com 外链（preconnect ×2 + stylesheet），`styles.css:23` 的 font stack 以 system-ui 兜底
 
 **后果**：render-blocking stylesheet 指向大陆不可达域名；本产品分析的是**微信**聊天，用户画像与该域名被墙的网络环境高度重合，首屏会挂在字体请求上直到超时（视浏览器数秒到数十秒白屏）。
 
@@ -64,8 +68,8 @@
 
 ### 5. 时间解析失败时，截断方向静默反转为「保留最旧」
 
-- [ ] TXT 各模式正则已捕获年月日时分秒，用捕获组构造 `new Date(y, m-1, d, h, mi, s)`，不要把字符串交给 `new Date(string)`（`src/parser.js:416-437`）
-- [ ] `truncateMessages` 的 untimed 分支改为从尾部取（或至少与 timed 同向），保住「保留最近」承诺（`src/llmEval.js:74-81`）
+- [x] `parseFlexibleTime` 改为显式正则捕获构造 `new Date(y, m-1, d, h, mi, s)`（覆盖 `-`/`/`/`.`/年月日 分隔、可缺秒、可缺时间），ISO 字符串走标准兜底，不再依赖浏览器对非 ISO 字符串的解析
+- [x] `truncateMessages` 的 untimed 分支改为从尾部取（文件顺序视为时间序），保住「保留最近」承诺
 
 **后果**：无时间戳消息按文件顺序**从头**追加直到上限；若一份导出的时间全部解析失败（全进 untimed 桶），实际发给模型的是**最早的 400 条**，与「保留最近对话」正好相反且用户无从察觉。诱因：`new Date("2024-12-01 12:00:00")` 是非 ISO 字符串，规范未定义，历史上 Safari 返回 Invalid Date（现代 Safari 行为未验证）。时间全丢还会让 prompt 强制要求的「时间线与节奏」一节失去依据。
 
@@ -77,7 +81,8 @@
 
 ### 6. 「更换 / 退出 Key」只清当前 provider 的 key
 
-- [ ] `clearStoredApiKey` 遍历 `KEY_STORAGE` 全清（`src/apiGate.js:31-34`）
+- [x] 已加 `clearAllStoredApiKeys()`（providers.js）遍历 `KEY_STORAGE` 全清 + legacy key，apiGate 的「退出 Key」改用它
+- [x] 顺带的 abort 竞态也已修：`ui.js` 中 aborted 分支现在会 `setEvaluating(false)` 并回导入页，不再可能卡死 loading
 
 **后果**：在两个 provider 都存过 Key 的用户点「退出 Key」后，另一个 provider 的 Key 仍明文留在 localStorage——与门禁文案「Key 只存本机、可退出」的承诺不一致，共用电脑场景尤其难看。
 
@@ -87,8 +92,8 @@
 
 ### 7. WeChatMsg 以无 `.gitmodules` 的 gitlink 被追踪 + 36 个工具垃圾文件进了历史
 
-- [ ] `git rm --cached WeChatMsg`，加入 `.gitignore`（README 已链接上游，web 应用运行时不依赖它）
-- [ ] `git rm -r --cached .understand-anything`，加入 `.gitignore`
+- [x] `git rm --cached WeChatMsg` + `.gitignore` 已加 `WeChatMsg/`（工作区文件保留，仅取消追踪；**已 stage 未 commit**）
+- [x] `git rm -r --cached .understand-anything` + `.gitignore` 已加 `.understand-anything/`、`.agents/`（同上，已 stage 未 commit）
 
 **后果**：`git ls-files -s` 显示 WeChatMsg 是 mode 160000 条目但没有 `.gitmodules`（`git submodule status` 直接 fatal）；clone 者得到空目录且无法初始化，gitlink 指向的 commit 若只在本地则永远拉不到。`.understand-anything/.trash-1783924567/` 下 36 个分析器缓存文件被 track。
 
@@ -98,7 +103,7 @@
 
 ### 8. LICENSE 文件与声明不一致
 
-- [ ] `LICENSE` 是 MIT（Copyright 2026 Yinzhou），`package.json:17` 与 README 写 ISC——二选一统一
+- [x] 已统一为 MIT（以 `LICENSE` 文件为准）：`package.json` license 字段与 README License 节均改为 MIT
 
 **修复成本**：分钟级。
 
@@ -106,9 +111,9 @@
 
 ## 建议删除（而非优化）
 
-1. **整个智谱直连 provider**（`providers.js` 的 `PROVIDER_ZHIPU`、`apiGate.js` 的 `validateZhipuKey`、vite 代理）。OpenRouter 模型列表已有 `z-ai/glm-4.5-air`（`providers.js:30`），想用 GLM 走 OpenRouter 即可：一个 Key、无 CORS、无代理、生产可用。双 provider 抽象为一条生产跑不通的路径付出了 apiGate/providers 约一半的分支复杂度，删掉后 apiGate 缩回单一校验函数。（对应问题 #3）
-2. **`expandDeepAnalysis` 扩写 pass**（`src/llmEval.js:398-449`）。字数门槛回归现实后没有存在理由，且它是代码里唯一把聊天全文重发第二遍的路径。（对应问题 #1）
-3. 顺手清理：`providers.js` 从未被读取的 `validateMethod` 字段；`ui.js:34` 只写不读的 `readyEvalInput`；`agent.md` 中已不存在的 `getReadyEvalInput()` 引用（文档同步）。
+1. ~~整个智谱直连 provider~~ **决策已取代（2026-07-14）**：目标用户是大陆用户，智谱是他们唯一现实的模型来源——不删，生产隐藏入口，Phase B 以「自持 Key 薄后端」形态回归（见问题 #3）。原「删掉走 OpenRouter 的 GLM」建议只适用于海外用户假设。
+2. ~~`expandDeepAnalysis` 扩写 pass~~ **已删**（连带 `countChars`、ui.js「扩写」进度分支）。（对应问题 #1）
+3. ~~顺手清理~~ **已清**：`validateMethod` 字段已删；`readyEvalInput` 模块级状态改为 `proceedToEval` 内联传参；`agent.md` 的 `getReadyEvalInput()` 引用已移除。
 
 ---
 
@@ -131,9 +136,11 @@
 
 ---
 
-## 不确定项（评审时无法验证，动手前先确认）
+## 不确定项（动手前先确认；已消解的划掉留档）
 
-- 智谱 `glm-4-flash` 的 `max_tokens` 上限（记忆中 4095；若实际支持 12288，问题 #3 的该子项不成立，但静态部署 404 的主论点不受影响）。
-- OpenRouter 上 `google/gemini-2.0-flash-001` 是否仍可用（`providers.js:29`，模型列表整体有陈旧风险）。
-- 现代 Safari 对 `new Date("2024-12-01 12:00:00")` 的行为（问题 #5 的结构性部分与此无关，照修不误）。
-- 「4o-mini 大概率写不满 5000 字 / 扩写几乎每次触发」是工程判断非实测；评审未实际运行应用、未用真实导出文件走端到端。
+- ~~智谱 `glm-4-flash` 的 `max_tokens` 上限~~ **已验证（官方文档）**：GLM-4.5-Flash 上限 4096；GLM-4.7 系 65536。Phase B 用 4.7 系。
+- ~~OpenRouter 上 `google/gemini-2.0-flash-001` 是否仍可用~~ **已验证（实测 models 接口）**：已下架，列表已换 `gemini-2.5-flash`；`gpt-4o-mini`/`gpt-4o`/`z-ai/glm-4.5-air` 仍在。
+- ~~OpenRouter 浏览器直连 CORS~~ **已验证（实测预检）**：204 + `Access-Control-Allow-Origin: *`，生产可用。
+- 现代 Safari 对 `new Date("2024-12-01 12:00:00")` 的行为——已通过显式正则解析绕开，不再依赖（问题 #5 已修，此项仅留档）。
+- 智谱 API 的 CORS 策略：当前网络连不上 open.bigmodel.cn（实测超时），无法测；Phase B 走自持 Key 后端后此问题自动消解。
+- 「1800 字深度评测」的实际输出质量与长度达标率：prompt 行为调整未实测，需带真实 Key 跑一轮确认观感（GPT 系与 GLM-4.7-Flash 各一轮，见问题 #3 前置实验）。
